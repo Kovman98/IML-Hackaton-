@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import seaborn as sns
 from matplotlib import pyplot as plt
 import sklearn
-def load_data(filename: str) -> pd.DataFrame:
+def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     """
     Load city daily temperature dataset and preprocess data.
     Parameters
@@ -18,18 +18,18 @@ def load_data(filename: str) -> pd.DataFrame:
     -------
     Design matrix and response vector (Temp)
     """
-    df = pd.read_csv(filename)
+    X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
+    X.loc[X['is_cancelled'] != 0] = 1
 
-    return df
+    return X
 
 
 
 if __name__ == '__main__':
     np.random.seed(0)
     # Question 1 - Load and preprocessing of city temperature dataset
-    X = load_data("dataset/agoda_cancellation_train.csv")
-    X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
-    X.loc[X['is_cancelled'] != 0] = 1
+    X = pd.read_csv("dataset/agoda_cancellation_train.csv")
+    X = preprocess_train(X)
     count = X['is_cancelled'].value_counts()
     labels = count.index.tolist()
     values = count.values.tolist()
