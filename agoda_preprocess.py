@@ -108,13 +108,13 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     #     else:
     #         return amount
 
-    # X["payment_nis"] = X.apply(convert_to_USD,axis = 1)
+    X["payment_nis"] = X.apply(convert_to_USD,axis = 1)
 
     X = pd.get_dummies(X, prefix='hotel_country_code_', columns=['hotel_country_code'])
     X = pd.get_dummies(X, prefix='accommadation_type_name_', columns=['accommadation_type_name'])
     X = pd.get_dummies(X, prefix='guest_nationality_country_name_', columns=['guest_nationality_country_name'])
     X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'])
-    X = pd.get_dummies(X, prefix='cancellation_policy_code_', columns=['cancellation_policy_code'])
+    #X = pd.get_dummies(X, prefix='cancellation_policy_code_', columns=['cancellation_policy_code'])
     X = pd.get_dummies(X, prefix='hotel_city_code_', columns=['hotel_city_code'])
 
     X['Cancellation Policy Applied'] = X.apply(
