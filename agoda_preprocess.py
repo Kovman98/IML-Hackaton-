@@ -19,7 +19,11 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     Design matrix and response vector (Temp)
     """
     X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
-    X.loc[X['is_cancelled'] != 0] = 1
+    X['is_cancelled'].loc[X['is_cancelled'] != 0] = 1
+    X = X.drop(['h_booking_id'], axis=1)
+    X = X.drop_duplicates()
+    X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
+    X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
 
     return X
 
@@ -28,8 +32,10 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
 if __name__ == '__main__':
     np.random.seed(0)
     # Question 1 - Load and preprocessing of city temperature dataset
-    X = pd.read_csv("dataset/agoda_cancellation_train.csv")
+    X = pd.read_csv("dataset/agoda_cancellation_train.csv", parse_dates=['booking_datetime', 'checkin_date',
+                                                                         'checkout_date', 'cancellation_datetime'])
     X = preprocess_train(X)
+
     count = X['is_cancelled'].value_counts()
     labels = count.index.tolist()
     values = count.values.tolist()
