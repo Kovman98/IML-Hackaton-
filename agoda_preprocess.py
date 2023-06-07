@@ -23,7 +23,7 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X = X.drop(['h_booking_id'], axis=1)
     X = X.drop_duplicates()
     X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
-    X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
+    X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
 
     return X
 
