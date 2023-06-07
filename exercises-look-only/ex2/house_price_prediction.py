@@ -1,5 +1,4 @@
-from IMLearn.utils import split_train_test
-from IMLearn.learners.regressors import LinearRegression
+
 
 from typing import NoReturn, Optional
 import numpy as np
