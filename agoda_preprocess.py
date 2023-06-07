@@ -57,8 +57,7 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
 
     X = X[X["days_before_checkin"] > -2]
     X = X[X["number_of_nights"] > 0]
-
-
+    X=X.reset_index()
 
     # conversion_rates = {
     #     'AED': 0.272,'ARS': 0.004,'AUD': 0.665,'BDT': 0.0092,'BHD': 2.659,'BRL': 0.202,'CAD': 0.747,
@@ -80,13 +79,14 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     #     else:
     #         return amount
 
-    X["payment_nis"] = X.apply(convert_to_USD,axis = 1)
+    # X["payment_nis"] = X.apply(convert_to_USD,axis = 1)
 
+    z = split_policy(X['cancellation_policy_code'][1])
     X = pd.get_dummies(X, prefix='hotel_country_code_', columns=['hotel_country_code'])
     X = pd.get_dummies(X, prefix='accommadation_type_name_', columns=['accommadation_type_name'])
     X = pd.get_dummies(X, prefix='guest_nationality_country_name_', columns=['guest_nationality_country_name'])
     X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'])
-    #X = pd.get_dummies(X, prefix='cancellation_policy_code_', columns=['cancellation_policy_code'])
+    #X = pd.get_dummies(X, prefix='cancellation_policy_code_', columns=)
     X = pd.get_dummies(X, prefix='hotel_city_code_', columns=['hotel_city_code'])
 
     X = X[X["hotel_star_rating"].between(0, 5)]
@@ -94,6 +94,9 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X = X[X["no_of_children"].isin(range(6))]
     X = X[X["no_of_extra_bed"].isin(range(3))]
     X = X[X["no_of_room"].isin(range(10))]
+
+    train['is_user_logged_in'] = train['is_user_logged_in'].astype(bool).astype(int)
+    train['is_first_booking'] = train['is_first_booking'].astype(bool).astype(int)
     return X
 
 
