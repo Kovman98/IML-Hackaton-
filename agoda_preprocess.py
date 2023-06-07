@@ -86,7 +86,7 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X = pd.get_dummies(X, prefix='accommadation_type_name_', columns=['accommadation_type_name'])
     X = pd.get_dummies(X, prefix='guest_nationality_country_name_', columns=['guest_nationality_country_name'])
     X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'])
-    # X = pd.get_dummies(X, prefix='cancellation_policy_code_', columns=['cancellation_policy_code'])
+    #X = pd.get_dummies(X, prefix='cancellation_policy_code_', columns=['cancellation_policy_code'])
     X = pd.get_dummies(X, prefix='hotel_city_code_', columns=['hotel_city_code'])
 
     X = X[X["hotel_star_rating"].between(0, 5)]
