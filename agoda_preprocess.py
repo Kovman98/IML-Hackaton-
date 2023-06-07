@@ -5,8 +5,8 @@ import plotly.io as pio
 import plotly.graph_objects as go
 from matplotlib import pyplot as plt
 import sklearn
-from forex_python.converter import CurrencyRates
-
+import requests
+import datetime
 def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     """
     Load city daily temperature dataset and preprocess data.
@@ -21,28 +21,49 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     """
     X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
     X['is_cancelled'].loc[X['is_cancelled'] != 0] = 1
-    X = X.drop(['h_booking_id', 'hotel_live_date', 'h_costumer_id', 'costumer_nationality',
-                'origin_counter_code', 'language'], axis=1)
+    X = X.drop(['h_booking_id', 'hotel_live_date', 'h_customer_id', 'customer_nationality',
+                'origin_country_code', 'language','original_payment_currency'], axis=1)
     X = X.drop_duplicates()
     X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
 
-    X = X[X["days_before_checkin" > -2]]
+    X = X[X["days_before_checkin"] > -2]
     X = X[X["number_of_nights"] > 0]
 
 
 
+    # conversion_rates = {
+    #     'AED': 0.272,'ARS': 0.004,'AUD': 0.665,'BDT': 0.0092,'BHD': 2.659,'BRL': 0.202,'CAD': 0.747,
+    #     'CHF': 1.098,'CNY': 0.1402,'CZK': 0.452,'DKK': 0.1436,'EGP': 0.0323,'EUR': 1.0699,
+    #     'FJD': 0.4471,'GBP': 1.2438,'HKD': 0.1275,'HUF': 0.0029,'IDR': 0.0000671,'ILS': 0.2735,'INR': 0.0121,
+    #     'JOD': 1.41,'JPY': 0.00713,'KHR': 0.0002421,'KRW': 0.000764,'KWD': 3.249,'KZT': 0.00224,'LAK': 0.0000554,
+    #     'LKR': 0.003427,'MXN': 0.0575,'MYR': 0.2173,'NGN': 0.00216,'NOK': 0.0906,'NZD': 0.6035,'OMR': 2.5973,
+    #     'PHP': 0.0178,'PKR': 0.00348,'PLN': 0.2384,'QAR': 0.274,'RON': 0.2157,'RUB': 0.0122,'SAR': 0.2666,
+    #     'SEK': 0.09197,'SGD': 0.7415,'THB': 0.028705,'TRY': 0.04302,'TWD': 0.0324,'UAH': 0.02711,'USD': 1,
+    #     'VND': 0.0000427,'XPF': 0.00896,'ZAR': 0.052367
+    # }
 
-    df = pd.get_dummies(df, prefix='hotel_country_code_', columns=['hotel_country_code'])
-    df = pd.get_dummies(df, prefix='accommadation_type_name_', columns=['accommadation_type_name'])
-    df = pd.get_dummies(df, prefix='guest_nationality_country_name_', columns=['guest_nationality_country_name'])
-    df = pd.get_dummies(df, prefix='original_payment_type_', columns=['original_payment_type'])
-    df = pd.get_dummies(df, prefix='cancellation_policy_code_', columns=['cancellation_policy_code'])
-    df = pd.get_dummies(df, prefix='hotel_city_code_', columns=['hotel_city_code'])
+
+    # def convert_to_USD(row):
+    #     amount = row['original_selling_amount']
+    #     currency = row['original_payment_currency']
+    #     if currency in conversion_rates:
+    #         return amount*conversion_rates[currency]
+    #     else:
+    #         return amount
+
+    # X["payment_nis"] = X.apply(convert_to_USD,axis = 1)
+
+    X = pd.get_dummies(X, prefix='hotel_country_code_', columns=['hotel_country_code'])
+    X = pd.get_dummies(X, prefix='accommadation_type_name_', columns=['accommadation_type_name'])
+    X = pd.get_dummies(X, prefix='guest_nationality_country_name_', columns=['guest_nationality_country_name'])
+    X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'])
+    X = pd.get_dummies(X, prefix='cancellation_policy_code_', columns=['cancellation_policy_code'])
+    X = pd.get_dummies(X, prefix='hotel_city_code_', columns=['hotel_city_code'])
 
     X = X[X["hotel_star_rating"].between(0, 5)]
-    X = X[X["no_of_adults"].isin(range(20))]
-    X = X[X["no_of_children"].isin(range(20))]
+    X = X[X["no_of_adults"].isin(range(12))]
+    X = X[X["no_of_children"].isin(range(6))]
     X = X[X["no_of_extra_bed"].isin(range(3))]
     X = X[X["no_of_room"].isin(range(10))]
     return X
