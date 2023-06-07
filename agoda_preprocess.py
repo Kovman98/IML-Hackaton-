@@ -6,6 +6,8 @@ import plotly.graph_objects as go
 import seaborn as sns
 from matplotlib import pyplot as plt
 import sklearn
+from forex_python.converter import CurrencyRates
+
 def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     """
     Load city daily temperature dataset and preprocess data.
@@ -20,10 +22,13 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     """
     X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
     X['is_cancelled'].loc[X['is_cancelled'] != 0] = 1
-    X = X.drop(['h_booking_id'], axis=1)
+    X = X.drop(['h_booking_id', 'hotel_live_date', 'h_costumer_id', 'costumer_nationality',
+                'origin_counter_code', 'language'], axis=1)
+    # X = X.drop(['hotel_live_date'], axis=1)
     X = X.drop_duplicates()
     X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
+
 
     return X
 
