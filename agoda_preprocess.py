@@ -35,6 +35,34 @@ def split_policy(policies):
     return results
 
 
+def apply_policy(days_diff, cancelled, policy_str):
+    policies = split_policy(policy_str)
+
+    # Sort policies by days, in descending order
+    policies.sort(key=lambda x: x[0], reverse=True)
+
+    for policy in policies:
+        policy_days, charge, charge_type = policy
+        if days_diff <= policy_days:
+            if cancelled:
+                if charge_type == 'P' and charge > 0:  # They would pay a charge
+                    return 1
+                else:  # They wouldn't pay a charge (charge is 0 or it's charged per nights, which is not applicable here)
+                    return 2
+            else:  # Didn't cancel
+                return 0
+
+    # If no policy applies and they cancelled, they wouldn't pay a charge
+    if cancelled:
+        return 2
+
+    # If no policy applies and they didn't cancel
+    return 0
+
+
+# Then, you can use this function to create a new column in your DataFrame:
+
+
 def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     """
     Load city daily temperature dataset and preprocess data.
@@ -88,6 +116,9 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'])
     X = pd.get_dummies(X, prefix='cancellation_policy_code_', columns=['cancellation_policy_code'])
     X = pd.get_dummies(X, prefix='hotel_city_code_', columns=['hotel_city_code'])
+
+    X['Cancellation Policy Applied'] = X.apply(
+        lambda row: apply_policy(row['Days Difference'], row['Cancelled'], row['Policy']), axis=1)
 
     X = X[X["hotel_star_rating"].between(0, 5)]
     X = X[X["no_of_adults"].isin(range(12))]
