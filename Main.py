@@ -69,17 +69,6 @@ if __name__ == '__main__':
     # mse = metrics.mean_squared_error(y, fitted.predict(test_x))
     # print("Mean Squared Error:", mse)
 
-    df = pd.get_dummies(df, prefix='hotel_country_code_', columns=['hotel_country_code'])
-    df = pd.get_dummies(df, prefix='accommadation_type_name_', columns=['accommadation_type_name'])
-    df = pd.get_dummies(df, prefix='guest_nationality_country_name_', columns=['guest_nationality_country_name'])
-    df = pd.get_dummies(df, prefix='original_payment_type_', columns=['original_payment_type'])
-    df = pd.get_dummies(df, prefix='cancellation_policy_code_', columns=['cancellation_policy_code'])
-    df = pd.get_dummies(df, prefix='hotel_city_code_', columns=['hotel_city_code'])
 
-    X = X[X["hotel_star_rating"].between(0,5)]
-    X = X[X["no_of_adults"].isin(range(20))]
-    X = X[X["no_of_children"].isin(range(20))]
-    X = X[X["no_of_extra_bed"].isin(range(3))]
-    X = X[X["no_of_room"].isin(range(10))]
 
 

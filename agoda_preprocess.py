@@ -24,12 +24,28 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X['is_cancelled'].loc[X['is_cancelled'] != 0] = 1
     X = X.drop(['h_booking_id', 'hotel_live_date', 'h_costumer_id', 'costumer_nationality',
                 'origin_counter_code', 'language'], axis=1)
-    # X = X.drop(['hotel_live_date'], axis=1)
     X = X.drop_duplicates()
     X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
 
+    X = X[X["days_before_checkin" > -2]]
+    X = X[X["number_of_nights"] > 0]
 
+
+
+
+    df = pd.get_dummies(df, prefix='hotel_country_code_', columns=['hotel_country_code'])
+    df = pd.get_dummies(df, prefix='accommadation_type_name_', columns=['accommadation_type_name'])
+    df = pd.get_dummies(df, prefix='guest_nationality_country_name_', columns=['guest_nationality_country_name'])
+    df = pd.get_dummies(df, prefix='original_payment_type_', columns=['original_payment_type'])
+    df = pd.get_dummies(df, prefix='cancellation_policy_code_', columns=['cancellation_policy_code'])
+    df = pd.get_dummies(df, prefix='hotel_city_code_', columns=['hotel_city_code'])
+
+    X = X[X["hotel_star_rating"].between(0, 5)]
+    X = X[X["no_of_adults"].isin(range(20))]
+    X = X[X["no_of_children"].isin(range(20))]
+    X = X[X["no_of_extra_bed"].isin(range(3))]
+    X = X[X["no_of_room"].isin(range(10))]
     return X
 
 
