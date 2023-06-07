@@ -3,7 +3,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.io as pio
 import plotly.graph_objects as go
-import seaborn as sns
 from matplotlib import pyplot as plt
 import sklearn
 from forex_python.converter import CurrencyRates
