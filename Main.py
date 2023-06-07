@@ -92,29 +92,42 @@ if __name__ == '__main__':
 
     # preprocess on test:
 
-
-    # deviation into mini train and validation sets
+    # splitting train and test sets into x and y
     train_y = train["cancellation_datetime"]
     train_x = train.drop('cancellation_datetime', axis=1)
-    train_smaller, validation = split_train_test(train_x, train_y)
+    test_y = test["cancellation_datetime"]
+    test_x = test.drop('cancellation_datetime', axis=1)
 
-    train_smaller_x = train_validation["cancellation_datetime"]
-    train_smaller_y = train_validation.drop('cancellation_datetime', axis=1)
-    validation_x = test_validation["cancellation_datetime"]
-    validation_y = test_validation.drop('cancellation_datetime', axis=1)
+    # todo needed? maybe
+    # deviation into mini train and validation sets
+    # train_smaller, validation = split_train_test(train_x, train_y)
+    #
+    # train_smaller_x = train_smaller["cancellation_datetime"]
+    # train_smaller_y = train_smaller.drop('cancellation_datetime', axis=1)
+    # validation_x = validation["cancellation_datetime"]
+    # validation_y = validation.drop('cancellation_datetime', axis=1)
 
     # tree model
-    tree_model = XGBClassifier(n_estimators=100, max_depth=1, learning_rate=0.1)  # todo max_depth should be chosen in for loop
-    scores = cross_val_score(tree_model, X_train, y_train, cv=5, scoring='accuracy')
-    average_accuracy = np.mean(scores)
+    best_depth = 99
+    best_accuracy = 1
+    for i in range(2, 11):
+        tree_model = XGBClassifier(n_estimators=100, max_depth=i, learning_rate=0.1)  # todo max_depth should be chosen in for loop
+        scores = cross_val_score(tree_model, train_x, train_y, cv=5, scoring='accuracy')
+        average_accuracy = np.mean(scores)
 
+        if average_accuracy < best_accuracy:
+            best_accuracy = average_accuracy
+            best_depth = i
+
+    print(best_accuracy)
+    print(best_depth)
 
     # linear models
-    fitted_linear: LinearRegression = LinearRegression().fit(train_x, train_y)
-
-    # todo should run in for loop for choosing the regularization param and the threshold param
-    fitted_ridge: Ridge = Ridge().fit(train_x, train_y)
-    fitted_lasso: Lasso = Lasso().fit(train_x, train_y)
+    # fitted_linear: LinearRegression = LinearRegression().fit(train_x, train_y)
+    #
+    # # todo should run in for loop for choosing the regularization param and the threshold param
+    # fitted_ridge: Ridge = Ridge().fit(train_x, train_y)
+    # fitted_lasso: Lasso = Lasso().fit(train_x, train_y)
 
 
 
