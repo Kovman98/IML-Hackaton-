@@ -35,34 +35,6 @@ def split_policy(policies):
     return results
 
 
-def apply_policy(days_diff, cancelled, policy_str):
-    policies = split_policy(policy_str)
-
-    # Sort policies by days, in descending order
-    policies.sort(key=lambda x: x[0], reverse=True)
-
-    for policy in policies:
-        policy_days, charge, charge_type = policy
-        if days_diff <= policy_days:
-            if cancelled:
-                if charge_type == 'P' and charge > 0:  # They would pay a charge
-                    return -1
-                else:  # They wouldn't pay a charge (charge is 0 or it's charged per nights, which is not applicable here)
-                    return 1
-            else:  # Didn't cancel
-                return 0
-
-    # If no policy applies and they cancelled, they wouldn't pay a charge
-    if cancelled:
-        return 1
-
-    # If no policy applies and they didn't cancel
-    return 0
-
-
-# Then, you can use this function to create a new column in your DataFrame:
-
-
 def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     """
     Load city daily temperature dataset and preprocess data.
@@ -82,10 +54,6 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X = X.drop_duplicates()
     X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
-    X['cancellation_datetime'].fillna(-1)
-    for i in range(len(X[:0])):
-        if (X['cancellation_datetime'][i] != -1):
-            X['days_difference'][i] = (X['cancellation_datetime'][i] - X['checkin_date'][i]).dt.days
 
     X = X[X["days_before_checkin"] > -2]
     X = X[X["number_of_nights"] > 0]
@@ -121,10 +89,6 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     #X = pd.get_dummies(X, prefix='cancellation_policy_code_', columns=)
     X = pd.get_dummies(X, prefix='hotel_city_code_', columns=['hotel_city_code'])
 
-
-    X['Cancellation Policy Applied'] = X.apply(
-        lambda row: apply_policy(row['days_difference'], row['Cancelled'], row['Policy']), axis=1)
-
     X = X[X["hotel_star_rating"].between(0, 5)]
     X = X[X["no_of_adults"].isin(range(12))]
     X = X[X["no_of_children"].isin(range(6))]
@@ -141,8 +105,7 @@ if __name__ == '__main__':
     np.random.seed(0)
     # Question 1 - Load and preprocessing of city temperature dataset
     X = pd.read_csv("dataset/agoda_cancellation_train.csv", parse_dates=['booking_datetime', 'checkin_date',
-                                                        'checkout_date', 'cancellation_datetime'])
-
+                                                                         'checkout_date', 'cancellation_datetime'])
     X = preprocess_train(X)
 
     count = X['is_cancelled'].value_counts()
