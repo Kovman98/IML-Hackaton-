@@ -21,8 +21,8 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     """
     X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
     X['is_cancelled'].loc[X['is_cancelled'] != 0] = 1
-    X = X.drop(['h_booking_id', 'hotel_live_date', 'h_costumer_id', 'costumer_nationality',
-                'origin_counter_code', 'language'], axis=1)
+    X = X.drop(['h_booking_id', 'hotel_live_date', 'h_customer_id', 'customer_nationality',
+                'origin_country_code', 'language'], axis=1)
     X = X.drop_duplicates()
     X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
