@@ -6,7 +6,9 @@ import plotly.graph_objects as go
 import seaborn as sns
 from matplotlib import pyplot as plt
 import sklearn
-def load_data(filename: str) -> pd.DataFrame:
+from forex_python.converter import CurrencyRates
+
+def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     """
     Load city daily temperature dataset and preprocess data.
     Parameters
@@ -18,18 +20,27 @@ def load_data(filename: str) -> pd.DataFrame:
     -------
     Design matrix and response vector (Temp)
     """
-    df = pd.read_csv(filename)
+    X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
+    X['is_cancelled'].loc[X['is_cancelled'] != 0] = 1
+    X = X.drop(['h_booking_id', 'hotel_live_date', 'h_costumer_id', 'costumer_nationality',
+                'origin_counter_code', 'language'], axis=1)
+    # X = X.drop(['hotel_live_date'], axis=1)
+    X = X.drop_duplicates()
+    X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
+    X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
 
-    return df
+
+    return X
 
 
 
 if __name__ == '__main__':
     np.random.seed(0)
     # Question 1 - Load and preprocessing of city temperature dataset
-    X = load_data("dataset/agoda_cancellation_train.csv")
-    X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
-    X.loc[X['is_cancelled'] != 0] = 1
+    X = pd.read_csv("dataset/agoda_cancellation_train.csv", parse_dates=['booking_datetime', 'checkin_date',
+                                                                         'checkout_date', 'cancellation_datetime'])
+    X = preprocess_train(X)
+
     count = X['is_cancelled'].value_counts()
     labels = count.index.tolist()
     values = count.values.tolist()
