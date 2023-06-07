@@ -2,9 +2,9 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 import sklearn
-# from sklearn import *
-# from sklearn.linear_model import LinearRegression
-# from sklearn.metrics import mean_squared_error
+from sklearn import *
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
 
 
 def split_train_test(X: pd.DataFrame, y: pd.Series, train_proportion: float = .75) \
@@ -59,10 +59,7 @@ if __name__ == '__main__':
     y = pd.Series(np.where(y == 0, 0, 1))
     dataFrame = dataFrame.drop('cancellation_datetime', axis=1)
 
-
     train_x, train_y, test_x, test_y = split_train_test(dataFrame, y)
-
-    print(y)
 
     fitted = LinearRegression().fit(train_x, train_y)
 
