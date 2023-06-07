@@ -7,6 +7,34 @@ from matplotlib import pyplot as plt
 import sklearn
 import requests
 import datetime
+import re
+
+import re
+
+def split_policy(policies):
+    # Regular expression pattern
+    pattern = r"(\d+)D(\d+)([PN])"
+
+    # Split the policies
+    policies = policies.split('_')
+
+    # Apply regex to each policy
+    results = []
+    for policy in policies:
+        match = re.match(pattern, policy)
+        if match:
+            days, charge, charge_type = match.groups()
+
+            # Convert to proper types
+            days = int(days)
+            charge = int(charge)
+            charge_type = 'Percentage' if charge_type == 'P' else 'Nights'
+
+            results.append((days, charge, charge_type))
+
+    return results
+
+
 def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     """
     Load city daily temperature dataset and preprocess data.
