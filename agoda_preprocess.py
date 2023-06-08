@@ -88,10 +88,10 @@ def unknown_data_preprocess(X: pd.DataFrame):
     X['did_request'] = X['did_request'].apply(lambda x: 1 if x != 0 else 0)
 
     # preprocessing the cancellation policy
-    X['cancellation_policy'] = X['cancellation_policy'].fillna('')
+    X['cancellation_policy_code'] = X['cancellation_policy_code'].fillna('')
     X['cancel_for_free'] = 0  # default value
 
-    for i, cancellation_policy in enumerate(X['cancellation_policy']):
+    for i, cancellation_policy in enumerate(X['cancellation_policy_code']):
         # need to check if inside policy
         if cancellation_policy != '':
             cancellation_parts = cancellation_policy.split('_')
@@ -136,10 +136,10 @@ def preprocess_data(X: pd.DataFrame) -> pd.DataFrame:
     X['did_request'] = X['did_request'].apply(lambda x: 1 if x != 0 else 0)
 
     # preprocessing the cancellation policy
-    X['cancellation_policy'] = X['cancellation_policy'].fillna('')
+    X['cancellation_policy_code'] = X['cancellation_policy_code'].fillna('')
     X['cancel_for_free'] = 0  # default value
 
-    for i, cancellation_policy in enumerate(X['cancellation_policy']):
+    for i, cancellation_policy in enumerate(X['cancellation_policy_code']):
         # need to check if inside policy
         if cancellation_policy != '':
             cancellation_parts = cancellation_policy.split('_')
@@ -150,9 +150,9 @@ def preprocess_data(X: pd.DataFrame) -> pd.DataFrame:
                         X['cancel_for_free'][i] = 1
 
     # dropping columns that not needed (created alternative columns for these ones)
-    X = X.drop(['checkin_date', 'checkout_date', 'cancellation_datetime', 'cancellation_policy', 'request_largebed',
+    X = X.drop(['checkin_date', 'checkout_date', 'cancellation_datetime', 'cancellation_policy_code', 'request_largebed',
                 'request_twinbeds', 'request_airport', 'request_earlycheckin', 'request_nonesmoke',
-                'request_latecheckin', 'request_highfloor', 'booking_datetime'])
+                'request_latecheckin', 'request_highfloor', 'booking_datetime'], axis=1)
 
     X['is_user_logged_in'] = X['is_user_logged_in'].astype(bool).astype(int)
     X['is_first_booking'] = X['is_first_booking'].astype(bool).astype(int)
@@ -162,7 +162,7 @@ def preprocess_data(X: pd.DataFrame) -> pd.DataFrame:
     X = pd.get_dummies(X, prefix='charge_option_', columns=['charge_option'], dtype=int)
     X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'])
 
-    X = X.drop(['hotel_country_code_', 'guest_nationality_country_name_', 'hotel_city_code_'])
+    X = X.drop(['hotel_country_code', 'guest_nationality_country_name', 'hotel_city_code'], axis=1)
     # X = pd.get_dummies(X, prefix='hotel_country_code_', columns=['hotel_country_code'])
     # X = pd.get_dummies(X, prefix='guest_nationality_country_name_', columns=['guest_nationality_country_name'])
     # X = pd.get_dummies(X, prefix='hotel_city_code_', columns=['hotel_city_code'])
@@ -293,12 +293,6 @@ if __name__ == '__main__':
 
 
 
-    # for feature in X:
-    #     correlation = np.cov(X[feature], y)[0, 1] / (np.std(X[feature]) * np.std(y))
-    #     fig = px.scatter(x=X[feature], y=y, title=f'Correlation between {feature} values and responses (Correlation:'
-    #                                               f' {correlation:.2f})',
-    #                      labels={'x': f"{feature}", 'y': 'Price in $'})
-    #     pio.show()
     # features = ["number_of_nights", "days_before_checkin", "hotel_star_rating", "no_of_adults","no_of_children",
     # "no_of_extra_bed","no_of_room", "original_selling_amount", 'number_of_nights', 'days_before_checkin']
     features = ['did_request','is_first_booking', 'is_user_logged_in']
