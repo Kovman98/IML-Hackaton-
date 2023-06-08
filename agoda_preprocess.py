@@ -77,7 +77,7 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     """
     X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
     X['is_cancelled'].loc[X['is_cancelled'] != 0] = 1
-    X = X.drop(['h_booking_id', 'hotel_live_date', 'h_customer_id', 'customer_nationality',
+    X = X.drop(['hotel_live_date', 'h_customer_id', 'customer_nationality',
                 'origin_country_code', 'language','original_payment_currency', 'original_payment_method',
                 'hotel_brand_code'], axis=1)
     X = X.drop_duplicates()
@@ -87,7 +87,7 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
 
     for i in range(X.shape[0]):
         if (X['cancellation_datetime'][i] != -1):
-            X['days_difference'][i] = (X['cancellation_datetime'][i] - X['checkin_date'][i]).dt.days
+            X['days_difference'][i] = (X['cancellation_datetime'][i].dt.days - X['checkin_date'][i].dt.days)
 
     X = X[X["days_before_checkin"] > -2]
     X = X[X["number_of_nights"] > 0]
@@ -175,8 +175,9 @@ if __name__ == '__main__':
 
     # Convert date columns to datetime objects
     X['checkin_date'] = pd.to_datetime(X['checkin_date'], format='%d/%m/%Y %H:%M')
+
     ids = X['h_booking_id']
-    X.drop('h_booking_id')
+    X = X.drop('h_booking_id', axis=1)
 
     X = preprocess_train(X)
     make_distribution_graphs(X)
