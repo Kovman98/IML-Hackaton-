@@ -85,9 +85,9 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
     X['cancellation_datetime'] = X['cancellation_datetime'].fillna(-1)
 
-    for i in range(X.shape[0]):
-        if (X['cancellation_datetime'][i] != -1):
-            X['days_difference'][i] = (X['cancellation_datetime'][i].dt.days - X['checkin_date'][i].dt.days)
+    # for i in range(X.shape[0]):
+    #     if (X['cancellation_datetime'][i] != -1):
+    #         X['days_difference'][i] = (X['cancellation_datetime'][i].dt.days - X['checkin_date'][i].dt.days)
 
     X = X[X["days_before_checkin"] > -2]
     X = X[X["number_of_nights"] > 0]
