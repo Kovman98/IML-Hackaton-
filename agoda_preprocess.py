@@ -95,7 +95,7 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     # # Calculate the time difference in days and assign -1 where date1 is NaN
     # X['date_difference'] = (X[] - X['date1']).dt.days.fillna(-1)
 
-    X.drop([])
+    # X.drop([])
 
     X = X[X["days_before_checkin"] > -2]
     X = X[X["number_of_nights"] > 0]
@@ -108,21 +108,28 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X = X[X["no_of_children"].isin(range(6))]
     X = X[X["no_of_extra_bed"].isin(range(3))]
     X = X[X["no_of_room"].isin(range(10))]
-    X = X[X["original_selling_amount"].isin(range(6000))]
+    X = X[X["original_selling_amount"] <= 5000]
     X = X[X['number_of_nights'].isin(range(10))]
-    X = X[X['days_before_checkin'].isin(range(200))]
+    X = X[X['days_before_checkin'] <= 200]
 
     X = pd.get_dummies(X, prefix='hotel_country_code_', columns=['hotel_country_code'])
     X = pd.get_dummies(X, prefix='accommadation_type_name_', columns=['accommadation_type_name'])
     X = pd.get_dummies(X, prefix='guest_nationality_country_name_', columns=['guest_nationality_country_name'])
     X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'])
+    X = pd.get_dummies(X, prefix='charge_option', columns=['charge_option'])
+
     #X = pd.get_dummies(X, prefix='cancellation_policy_code_', columns=['cancellation_policy_code'])
     X = pd.get_dummies(X, prefix='hotel_city_code_', columns=['hotel_city_code'])
-
-
+    X['did_request'] = X['request_highfloor']+X['request_largebed']+X['request_nonesmoke']+X['request_latecheckin']\
+                       +X['request_largebed']+X['request_twinbeds']+X['request_airport']+X['request_earlycheckin']
     # X['Cancellation Policy Applied'] = X.apply(
     #     lambda row: apply_policy(row['days_difference'], row['Cancelled'], row['Policy']), axis=1)
-
+    X = X.drop(['booking_datetime', 'checkin_date', 'checkout_date'], axis=1)
+    X = X.drop(['hotel_id', 'cancellation_policy_code', 'hotel_chain_code', 'request_highfloor'], axis=1)
+    X = X.drop(['cancellation_datetime', 'request_largebed', 'request_twinbeds', 'request_airport',
+                'request_earlycheckin', 'request_nonesmoke', 'request_latecheckin', 'hotel_area_code'], axis=1)
+    X['did_request'] = X['did_request'].fillna(0)
+    X['did_request'] = X['did_request'].apply(lambda x: 1 if x != 0 else 0)
     return X
 
 def make_distribution_graphs(df: pd.DataFrame) -> None:
@@ -188,7 +195,7 @@ if __name__ == '__main__':
     X = X.drop('h_booking_id', axis=1)
 
     X = preprocess_train(X)
-    make_distribution_graphs(X)
+    # make_distribution_graphs(X)
     count = X['is_cancelled'].value_counts()
     labels = count.index.tolist()
     values = count.values.tolist()
