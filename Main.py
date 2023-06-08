@@ -6,7 +6,7 @@ import sklearn
 from sklearn import *
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, train_test_split
 from xgboost import XGBClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.linear_model import LinearRegression
@@ -17,6 +17,10 @@ from sklearn.linear_model import LogisticRegression
 from scipy.special import expit
 import matplotlib.pyplot as plt
 from sklearn.model_selection import GridSearchCV
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import KFold
+
+
 
 
 def preprocess_data(X: pd.DataFrame) -> pd.DataFrame:
@@ -78,103 +82,63 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     return X
 
 
-def find_best_threshold_linear(X, y):
+def find_best_threshold_linear(X, y, model):
     # Initialize LinearRegression model
-    model = LinearRegression()
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # Perform cross-validation to find the best threshold
     best_threshold = None
     best_accuracy = 0.0
 
-    for train_index, val_index in cross_val_score(model, X, y, cv=5):
-        # Split data into training and validation sets
-        X_train, X_val = X[train_index], X[val_index]
-        y_train, y_val = y[train_index], y[val_index]
+    thershold_values = np.linspace(0, 1, 10)
 
-        # Train the model
+    # Perform cross-validation and iterate over train/validation indices
+    for value in thershold_values:
         model.fit(X_train, y_train)
-
-        # Make predictions on the validation set
-        y_pred_val = model.predict(X_val)
-
-        # Apply sigmoid function to convert predictions into probabilities
-        y_pred_prob_val = expit(y_pred_val)
-
-        # Define a range of thresholds to test
-        thresholds = np.arange(0.1, 1.0, 0.1)
-
-        for threshold in thresholds:
-            # Convert probabilities to binary labels based on the threshold
-            y_pred_labels_val = np.where(y_pred_prob_val >= threshold, 1, 0)
-
-            # Calculate accuracy using the predicted labels and the true labels
-            accuracy = accuracy_score(y_val, y_pred_labels_val)
-
-            # Check if the current threshold gives higher accuracy
-            if accuracy > best_accuracy:
-                best_threshold = threshold
-                best_accuracy = accuracy
+        predicted_probs = expit(model.predict(X_test))
+        predictions = np.where(predicted_probs >= value, 1, 0)
+        accuracy = accuracy_score(y_test, predictions)
+        if accuracy > best_accuracy:
+            best_threshold = value
+            best_accuracy = accuracy
 
     return best_threshold
 
 
-def find_best_alpha_threshold(model, X, y):
+
+
+
+def find_best_alpha(model, X, y, threshold = 0.66):
     # Define a range of alpha values to test
-    alphas = np.arange(0.1, 1.0, 0.1)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    # Perform cross-validation to find the best alpha
+    # Perform cross-validation to find the best threshold
     best_alpha = None
-    best_alpha_accuracy = 0.0
-    best_threshold = None
+    best_accuracy = 0.0
 
-    for alpha in alphas:
-        # Set the current alpha value
-        model.alpha = alpha
+    alpha_values = np.linspace(1e-3, 0.5, 10)
 
-        accuracy_scores = []
-        thresholds = np.arange(0.1, 1.0, 0.1)
-
-        # Iterate over each fold of cross-validation
-        for train_index, val_index in cross_val_score(model, X, y, cv=5):
-            # Split data into training and validation sets
-            X_train, X_val = X[train_index], X[val_index]
-            y_train, y_val = y[train_index], y[val_index]
-
-            # Fit the model on the training set
-            model.fit(X_train, y_train)
-
-            # Make predictions on the validation set
-            y_pred_val = model.predict(X_val)
-
-            # Apply sigmoid function to convert predictions into probabilities
-            y_pred_prob_val = expit(y_pred_val)
-
-            for threshold in thresholds:
-                # Convert probabilities to binary labels based on the threshold
-                y_pred_labels_val = np.where(y_pred_prob_val >= threshold, 1, 0)
-
-                # Calculate accuracy using the predicted labels and the true labels
-                accuracy = accuracy_score(y_val, y_pred_labels_val)
-
-                accuracy_scores.append(accuracy)
-
-        # Calculate the average accuracy across all folds
-        average_accuracy = np.mean(accuracy_scores)
-
-        # Check if the current alpha gives higher accuracy
-        if average_accuracy > best_alpha_accuracy:
+    # Perform cross-validation and iterate over train/validation indices
+    for alpha in alpha_values:
+        if (model == "ridge"):
+            model: Ridge = Ridge(alpha=alpha)
+        else:
+            model: Lasso = Lasso(alpha=alpha)
+        model.fit(X_train, y_train)
+        predicted_probs = expit(model.predict(X_test))
+        predictions = np.where(predicted_probs >= threshold, 1, 0)
+        accuracy = accuracy_score(y_test, predictions)
+        if accuracy > best_accuracy:
             best_alpha = alpha
-            best_alpha_accuracy = average_accuracy
-            best_threshold = np.argmax(accuracy_scores) // len(thresholds)
+            best_accuracy = accuracy
 
-    return best_alpha, best_threshold
-
+    return best_alpha
 
 def split_train_test(df: pd.DataFrame, train_proportion: float = .75) \
         -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     train: pd.DataFrame = df.sample(frac=train_proportion)
-    test: pd.DataFrame = df.loc[X.index.difference(train_x.index)]
+    test: pd.DataFrame = df.loc[df.index.difference(train.index)]
 
     return train, test
 
@@ -183,7 +147,7 @@ def model_selection(train_x: pd.DataFrame, train_y: pd.Series, test_x: pd.DataFr
     # tree model
     best_depth = 99
     best_accuracy = 1
-    for i in range(2, 11):
+    for i in range(2, 5):
         tree_model = XGBClassifier(n_estimators=100, max_depth=i, learning_rate=0.1)
         scores = cross_val_score(tree_model, train_x, train_y, cv=5, scoring='accuracy')
         average_accuracy = np.mean(scores)
@@ -197,33 +161,47 @@ def model_selection(train_x: pd.DataFrame, train_y: pd.Series, test_x: pd.DataFr
 
     # linear models
     # getting best threshold and best alpha
-    best_threshold_linear = find_best_threshold_linear(train_x, train_y)
+    # best_threshold_linear = find_best_threshold_linear(train_x, train_y, LinearRegression())
+    best_threshold_linear = 0.61
     ridge_model: Ridge = Ridge()
     lasso_model: Lasso = Lasso()
-    best_alpha_ridge, best_threshold_ridge = find_best_alpha_threshold(ridge_model, train_x, train_y)
-    best_alpha_lasso, best_threshold_lasso = find_best_alpha_threshold(lasso_model, train_x, train_y)
+    best_alpha_ridge = find_best_alpha("ridge", train_x, train_y)
+    best_alpha_lasso = find_best_alpha("lasso", train_x, train_y)
 
     # fitting the models with the best values
+    # best_threshold_rf = find_best_threshold_linear(train_x, train_y, RandomForestRegressor())
+    best_threshold_rf = 0.66
+    rf_model = RandomForestRegressor().fit(train_x, train_y)
     linear_pred: LinearRegression = LinearRegression().fit(train_x, train_y)
     best_ridge: Ridge = Ridge(best_alpha_ridge).fit(train_x, train_y)
     best_lasso: Lasso = Lasso(best_alpha_lasso).fit(train_x, train_y)
     logistic_model = LogisticRegression().fit(train_x, train_y)
 
     # getting the best prediction of all models
-    linear_pred = linear_pred.predict(test_x).apply(lambda x: 1 if x >= best_threshold_linear else 0)
-    ridge_pred = best_ridge.predict(test_x).apply(lambda x: 1 if x >= best_threshold_ridge else 0)
-    lasso_pred = best_lasso.predict(test_x).apply(lambda x: 1 if x >= best_threshold_lasso else 0)
-    logistic_pred = best_lasso.predict(test_x)
+    predicted_probs = expit(linear_pred.predict(test_x))
+    predictions = np.where(predicted_probs >= best_threshold_linear, 1, 0)
+    predicted_probs_lasso = expit(best_lasso.predict(test_x))
+    predictions_lasso = np.where(predicted_probs_lasso >= best_threshold_linear, 1, 0)
+    predicted_probs_ridge = expit(best_ridge.predict(test_x))
+    predictions_ridge = np.where(predicted_probs_ridge >= best_threshold_linear, 1, 0)
+
+    logistic_pred = logistic_model.predict(test_x)
+    rf_predict = rf_model.predict(test_x)
+    rf_predicted_probs = expit(rf_predict)
+    rf_predictions = np.where(rf_predicted_probs >= best_threshold_rf, 1, 0)
 
     # calculating accuracy scores for all models
-    accuracy_linear: float = accuracy_score(test_y, linear_pred)
-    accuracy_ridge: float = accuracy_score(test_y, ridge_pred)
-    accuracy_lasso: float = accuracy_score(test_y, lasso_pred)
+    accuracy_linear: float = accuracy_score(test_y, predictions)
+    accuracy_ridge: float = accuracy_score(test_y, predictions_ridge)
+    accuracy_lasso: float = accuracy_score(test_y, predictions_lasso)
     accuracy_logistic: float = accuracy_score(test_y, logistic_pred)
+    accuracy_rf: float = accuracy_score(test_y, rf_predictions)
+
 
     print("Accuracy of Linear Regression:", accuracy_linear)
     print("Accuracy of Ridge Regression:", accuracy_ridge)
     print("Accuracy of Lasso Regression:", accuracy_lasso)
+    print("Accuracy of random forest:", accuracy_rf)
     print("Accuracy of Logistic Regression:", accuracy_logistic)
 
 
@@ -250,13 +228,14 @@ def cancellation_cost(X,y,test_X, test_y):
     prediction_ridge = model_ridge.predict(test_X)
     model_lasso = Lasso(best_alpha_lasso).fit(X, y)
     prediction_lasso = model_lasso.predict(test_X)
-    accuracy_ridge = accuracy_score(prediction_ridge, test_y)
-    accuracy_lasso = accuracy_score(prediction_lasso, test_y)
+    ridge_rmse = np.sqrt(mean_squared_error(y_test, prediction_ridge))
+    lasso_rmse = np.sqrt(mean_squared_error(y_test, prediction_lasso))
 
-    print(accuracy_lasso)
-    print(accuracy_ridge)
+    # Print the RMSE scores
+    print("Ridge RMSE:", ridge_rmse)
+    print("Lasso RMSE:", lasso_rmse)
 
-    if accuracy_lasso < accuracy_ridge:
+    if lasso_rmse < ridge_rmse:
         return model_ridge
     else:
         return model_lasso
@@ -270,34 +249,40 @@ if __name__ == '__main__':
                                           parse_dates=['booking_datetime', 'checkout_date', 'cancellation_datetime'],
                                           dayfirst=True)
     dataFrame = dataFrame.sample(frac=1).reset_index(drop=True)
+    dataFrame['checkin_date'] = pd.to_datetime(dataFrame['checkin_date'], format='%d/%m/%Y %H:%M')
 
+    # ids = dataFrame['h_booking_id']
+    # dataFrame = dataFrame.drop('h_booking_id', axis=1)
+
+    dataFrame['is_cancelled'] = dataFrame['cancellation_datetime'].fillna(0)
+    dataFrame['is_cancelled'].loc[dataFrame['is_cancelled'] != 0] = 1
     # preprocess all data:
-    X = preprocess_data(dataFrame)
+    dataFrame = agoda_preprocess.joint_preprocess(dataFrame)
+    train, test = split_train_test(dataFrame)
 
-    # splitting into X and y and into train and test sets
-    y: pd.Series = X["is_cancelled"]
-    X: pd.DataFrame = dataFrame.drop('is_cancelled', axis=1)
-    train, test = split_train_test(X)
 
-    # preprocess on train data:
-    preprocess_train(train)
+    clean_train = agoda_preprocess.preprocess_train(train)
+    clean_test = agoda_preprocess.preprocess_test(test)
 
     # todo preprocess on test: (in this part we need to fill the empty samples in the test)
 
     # splitting train and test sets into x and y
-    train_y = train["is_cancelled"]
-    train_x = train.drop('is_cancelled', axis=1)
-    test_y = test["is_cancelled"]
-    test_x = test.drop('is_cancelled', axis=1)
+    train_y = clean_train["is_cancelled"].astype(int)
+    train_x = clean_train.drop('is_cancelled', axis=1)
+    train_x = train_x.drop('h_booking_id', axis=1)
+    test_y = clean_test["is_cancelled"].astype(int)
+    test_x = clean_test.drop('is_cancelled', axis=1)
+    test_x = test_x.drop('h_booking_id', axis=1)
+
 
     # model selecting:
-    model_selection(train_x, train_y, test_x, test_y)
+    # model_selection(train_x, train_y, test_x, test_y)
 
 
     # question 2:
     # Filter rows where 'cancellation_datetime' is not null
-    filtered_train = train[train['is_cancelled'] == 1]
-    filtered_test = test[test['is_cancelled'] == 1]
+    filtered_train = clean_train[clean_train['is_cancelled'] == 1]
+    filtered_test = clean_test[clean_test['is_cancelled'] == 1]
 
     # Create X (features) by excluding the specified columns
     X = filtered_train.drop(['is_cancelled', 'h_booking_id', 'original_selling_amount'], axis=1)
