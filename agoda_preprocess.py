@@ -62,63 +62,21 @@ def apply_policy(days_diff, cancelled, policy_str):
 
 # Then, you can use this function to create a new column in your DataFrame:
 
-def remove_data(X: pd.DataFrame):
+def joint_preprocess(X: pd.DataFrame):
     X = X.drop(['hotel_live_date', 'h_customer_id', 'customer_nationality',
                 'origin_country_code', 'language', 'original_payment_currency', 'original_payment_method',
                 'hotel_brand_code'], axis=1)
+
     X = X.drop_duplicates()
-    X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
-    X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
-    X['cancellation_datetime'] = X['cancellation_datetime'].fillna(-1)
-
-
-    return X
-def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
-    """
-    Load city daily temperature dataset and preprocess data.
-    Parameters
-    ----------
-    filename: str
-        Path to house prices dataset
-
-    Returns
-    -------
-    Design matrix and response vector (Temp)
-    """
-    X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
-    X['is_cancelled'].loc[X['is_cancelled'] != 0] = 1
-    X = remove_data(X)
 
     X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
     X['cancellation_datetime'] = X['cancellation_datetime'].fillna(-1)
 
-    # # for i in range(X.shape[0]):
-    # #     if (X['cancellation_datetime'][i] != -1):
-    # #         X['days_difference'][i] = (X['cancellation_datetime'][i].dt.days - X['checkin_date'][i].dt.days)
-    #
-    # X['cancellation_datetime'] = pd.to_datetime(X['cancellation_datetime'])
-    # X['checkin_date'] = pd.to_datetime(X['checkin_date'])
-    #
-    # # Calculate the time difference in days and assign -1 where date1 is NaN
-    # X['date_difference'] = (X[] - X['date1']).dt.days.fillna(-1)
-
-    # X.drop([])
-
-    X = X[X["days_before_checkin"] > -2]
-    X = X[X["number_of_nights"] > 0]
-
+    X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
+    X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
     X['is_user_logged_in'] = X['is_user_logged_in'].astype(bool).astype(int)
     X['is_first_booking'] = X['is_first_booking'].astype(bool).astype(int)
-
-    X = X[X["hotel_star_rating"].between(0, 5)]
-    X = X[X["no_of_adults"].isin(range(12))]
-    X = X[X["no_of_children"].isin(range(6))]
-    X = X[X["no_of_extra_bed"].isin(range(3))]
-    X = X[X["no_of_room"].isin(range(10))]
-    X = X[X["original_selling_amount"] <= 5000]
-    X = X[X['number_of_nights'].isin(range(10))]
-    X = X[X['days_before_checkin'] <= 200]
 
     X = pd.get_dummies(X, prefix='hotel_country_code_', columns=['hotel_country_code'])
     X = pd.get_dummies(X, prefix='accommadation_type_name_', columns=['accommadation_type_name'])
@@ -138,6 +96,58 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
                 'request_earlycheckin', 'request_nonesmoke', 'request_latecheckin', 'hotel_area_code'], axis=1)
     X['did_request'] = X['did_request'].fillna(0)
     X['did_request'] = X['did_request'].apply(lambda x: 1 if x != 0 else 0)
+
+    return X
+
+
+def preprocess_test(X: pd.DataFrame):
+    X = X.replace("nan", np.nan)
+    X = X.dropna(axis=0)
+
+    y =  ["number_of_nights","days_before_checkin","hotel_star_rating","no_of_adults","no_of_children",
+    "no_of_extra_bed","no_of_room","original_selling_amount",'number_of_nights','days_before_checkin']
+    # update all nan values with the median of the column in order to balance out value
+    for col in y:
+        X[col] = X[col].replace(np.nan, X[col].median(axis=0))
+def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
+    """
+    Load city daily temperature dataset and preprocess data.
+    Parameters
+    ----------
+    filename: str
+        Path to house prices dataset
+
+    Returns
+    -------
+    Design matrix and response vector (Temp)
+    """
+    X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
+    X['is_cancelled'].loc[X['is_cancelled'] != 0] = 1
+
+    X['cancellation_datetime'] = X['cancellation_datetime'].fillna(-1)
+
+    # # for i in range(X.shape[0]):
+    # #     if (X['cancellation_datetime'][i] != -1):
+    # #         X['days_difference'][i] = (X['cancellation_datetime'][i].dt.days - X['checkin_date'][i].dt.days)
+    #
+    # X['cancellation_datetime'] = pd.to_datetime(X['cancellation_datetime'])
+    # X['checkin_date'] = pd.to_datetime(X['checkin_date'])
+    #
+    # # Calculate the time difference in days and assign -1 where date1 is NaN
+    # X['date_difference'] = (X[] - X['date1']).dt.days.fillna(-1)
+
+    # X.drop([])
+
+    X = X[X["number_of_nights"] > 0]
+    X = X[X["days_before_checkin"] > -2]
+    X = X[X["hotel_star_rating"].between(0, 5)]
+    X = X[X["no_of_adults"].isin(range(12))]
+    X = X[X["no_of_children"].isin(range(6))]
+    X = X[X["no_of_extra_bed"].isin(range(3))]
+    X = X[X["no_of_room"].isin(range(10))]
+    X = X[X["original_selling_amount"] <= 5000]
+    X = X[X['number_of_nights'].isin(range(10))]
+    X = X[X['days_before_checkin'] <= 200]
     return X
 
 def make_distribution_graphs(df: pd.DataFrame) -> None:
@@ -227,4 +237,3 @@ if __name__ == '__main__':
     # y = y.fillna(0)
     # y.loc[y != 0] = 1
     #
-    X = X.drop('cancellation_datetime', axis=1)
