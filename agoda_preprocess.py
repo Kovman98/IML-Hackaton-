@@ -82,8 +82,8 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X = X.drop_duplicates()
     X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
-    X['cancellation_datetime'].fillna(-1)
-    for i in range(len(X[:0])):
+    X['cancellation_datetime'] = X['cancellation_datetime'].fillna(-1)
+    for i in range(len(X[0:])):
         if (X['cancellation_datetime'][i] != -1):
             X['days_difference'][i] = (X['cancellation_datetime'][i] - X['checkin_date'][i]).dt.days
 
@@ -137,9 +137,11 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
 if __name__ == '__main__':
     np.random.seed(0)
     # Question 1 - Load and preprocessing of city temperature dataset
-    X = pd.read_csv("dataset/agoda_cancellation_train.csv", parse_dates=['booking_datetime', 'checkin_date',
-                                                        'checkout_date', 'cancellation_datetime'])
+    X = pd.read_csv("dataset/agoda_cancellation_train.csv", parse_dates=['booking_datetime','checkout_date','cancellation_datetime'])
+    # date_columns = ['booking_datetime', 'checkin_date', 'checkout_date', 'cancellation_datetime']
 
+    # Convert date columns to datetime objects
+    X['checkin_date'] = pd.to_datetime(X['checkin_date'], format='%d/%m/%Y %H:%M')
     X = preprocess_train(X)
 
     count = X['is_cancelled'].value_counts()
