@@ -8,33 +8,101 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import cross_val_score
 from xgboost import XGBClassifier
+from sklearn.model_selection import cross_val_score
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import accuracy_score
+from scipy.special import expit
 
 
-def find_best_alpha_threshold(model, X_train, y_train, X_val, y_val, alpha_values, threshold_values):
+def find_best_threshold_linear(X, y):
+    # Initialize LinearRegression model
+    model = LinearRegression()
+
+    # Perform cross-validation to find the best threshold
+    best_threshold = None
     best_accuracy = 0.0
+
+    for train_index, val_index in cross_val_score(model, X, y, cv=5):
+        # Split data into training and validation sets
+        X_train, X_val = X[train_index], X[val_index]
+        y_train, y_val = y[train_index], y[val_index]
+
+        # Train the model
+        model.fit(X_train, y_train)
+
+        # Make predictions on the validation set
+        y_pred_val = model.predict(X_val)
+
+        # Apply sigmoid function to convert predictions into probabilities
+        y_pred_prob_val = expit(y_pred_val)
+
+        # Define a range of thresholds to test
+        thresholds = np.arange(0.1, 1.0, 0.1)
+
+        for threshold in thresholds:
+            # Convert probabilities to binary labels based on the threshold
+            y_pred_labels_val = np.where(y_pred_prob_val >= threshold, 1, 0)
+
+            # Calculate accuracy using the predicted labels and the true labels
+            accuracy = accuracy_score(y_val, y_pred_labels_val)
+
+            # Check if the current threshold gives higher accuracy
+            if accuracy > best_accuracy:
+                best_threshold = threshold
+                best_accuracy = accuracy
+
+    return best_threshold
+
+def find_best_alpha_threshold(model, X, y):
+    # Define a range of alpha values to test
+    alphas = np.arange(0.1, 1.0, 0.1)
+
+    # Perform cross-validation to find the best alpha
     best_alpha = None
+    best_alpha_accuracy = 0.0
     best_threshold = None
 
-    for alpha in alpha_values:
-        for threshold in threshold_values:
-            # Train the regression model with the current alpha value
-            model.alpha = alpha
+    for alpha in alphas:
+        # Set the current alpha value
+        model.alpha = alpha
+
+        accuracy_scores = []
+        thresholds = np.arange(0.1, 1.0, 0.1)
+
+        # Iterate over each fold of cross-validation
+        for train_index, val_index in cross_val_score(model, X, y, cv=5):
+            # Split data into training and validation sets
+            X_train, X_val = X[train_index], X[val_index]
+            y_train, y_val = y[train_index], y[val_index]
+
+            # Fit the model on the training set
             model.fit(X_train, y_train)
 
-            # Obtain predictions on the validation data and apply sigmoid function
-            X_val_pred = model.predict(X_val)
-            y_val_pred = sigmoid(X_val_pred) >= threshold
+            # Make predictions on the validation set
+            y_pred_val = model.predict(X_val)
 
-            # Evaluate the performance using accuracy score
-            accuracy = accuracy_score(y_val, y_val_pred)
+            # Apply sigmoid function to convert predictions into probabilities
+            y_pred_prob_val = expit(y_pred_val)
 
-            # Check if current combination is the best so far
-            if accuracy > best_accuracy:
-                best_accuracy = accuracy
-                best_alpha = alpha
-                best_threshold = threshold
+            for threshold in thresholds:
+                # Convert probabilities to binary labels based on the threshold
+                y_pred_labels_val = np.where(y_pred_prob_val >= threshold, 1, 0)
 
-    return best_alpha, best_threshold, best_accuracy
+                # Calculate accuracy using the predicted labels and the true labels
+                accuracy = accuracy_score(y_val, y_pred_labels_val)
+
+                accuracy_scores.append(accuracy)
+
+        # Calculate the average accuracy across all folds
+        average_accuracy = np.mean(accuracy_scores)
+
+        # Check if the current alpha gives higher accuracy
+        if average_accuracy > best_alpha_accuracy:
+            best_alpha = alpha
+            best_alpha_accuracy = average_accuracy
+            best_threshold = np.argmax(accuracy_scores) // len(thresholds)
+
+    return best_alpha,best_threshold
 
 
 def split_train_test(X: pd.DataFrame, y: pd.Series, train_proportion: float = .75) \
@@ -92,6 +160,7 @@ if __name__ == '__main__':
 
     # preprocess on test:
 
+
     # splitting train and test sets into x and y
     train_y = train["cancellation_datetime"]
     train_x = train.drop('cancellation_datetime', axis=1)
@@ -119,25 +188,39 @@ if __name__ == '__main__':
             best_accuracy = average_accuracy
             best_depth = i
 
-    print(best_accuracy)
-    print(best_depth)
+    print("Best accuracy of tree is: ", best_accuracy)
+    print("The best tree depth is: ", best_depth)
 
     # linear models
-    # fitted_linear: LinearRegression = LinearRegression().fit(train_x, train_y)
-    #
-    # # todo should run in for loop for choosing the regularization param and the threshold param
-    # fitted_ridge: Ridge = Ridge().fit(train_x, train_y)
-    # fitted_lasso: Lasso = Lasso().fit(train_x, train_y)
+    # getting best threshold and best alpha
+    best_threshold_linear = find_best_threshold_linear(train_x, train_y)
+    ridge_model: Ridge = Ridge()
+    lasso_model: Lasso = Lasso()
+    best_alpha_ridge, best_threshold_ridge = find_best_alpha_threshold(ridge_model,train_x, train_y)
+    best_alpha_lasso, best_threshold_lasso = find_best_alpha_threshold(lasso_model,train_x, train_y)
 
+    # fitting the models with the best values
+    linear_pred: LinearRegression = LinearRegression().fit(train_x, train_y)
+    best_ridge: Ridge = Ridge(best_alpha_ridge).fit(train_x, train_y)
+    best_lasso: Lasso = Lasso(best_alpha_lasso).fit(train_x, train_y)
+    logistic_model = LogisticRegression().fit(train_x, train_y)
 
+    # getting the best prediction of all models
+    linear_pred = linear_pred.predict(test_x).apply(lambda x: 1 if x >= best_threshold_linear else 0)
+    ridge_pred = best_ridge.predict(test_x).apply(lambda x: 1 if x >= best_threshold_ridge else 0)
+    lasso_pred = best_lasso.predict(test_x).apply(lambda x: 1 if x >= best_threshold_lasso else 0)
+    logistic_pred = best_lasso.predict(test_x)
 
-    # ridge_model = Ridge(alpha=0.1)
-    # ridge_model.fit(X_train, y_train)
-    # lasso_model = Lasso(alpha=0.1)
-    # lasso_model.fit(X_train,y_train)
-    # # mse = metrics.mean_squared_error(y, fitted.predict(test_x))
-    # # print("Mean Squared Error:", mse)
+    # calculating accuracy scores for all models
+    accuracy_linear: float = accuracy_score(test_y, linear_pred)
+    accuracy_ridge: float = accuracy_score(test_y, ridge_pred)
+    accuracy_lasso: float = accuracy_score(test_y, lasso_pred)
+    accuracy_logistic: float = accuracy_score(test_y, logistic_pred)
 
+    print("Accuracy of Linear Regression:", accuracy_linear)
+    print("Accuracy of Ridge Regression:", accuracy_ridge)
+    print("Accuracy of Lasso Regression:", accuracy_lasso)
+    print("Accuracy of Logistic Regression:", accuracy_logistic)
 
 
 
