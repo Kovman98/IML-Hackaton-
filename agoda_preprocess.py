@@ -85,9 +85,17 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
     X['cancellation_datetime'] = X['cancellation_datetime'].fillna(-1)
 
-    # for i in range(X.shape[0]):
-    #     if (X['cancellation_datetime'][i] != -1):
-    #         X['days_difference'][i] = (X['cancellation_datetime'][i].dt.days - X['checkin_date'][i].dt.days)
+    # # for i in range(X.shape[0]):
+    # #     if (X['cancellation_datetime'][i] != -1):
+    # #         X['days_difference'][i] = (X['cancellation_datetime'][i].dt.days - X['checkin_date'][i].dt.days)
+    #
+    # X['cancellation_datetime'] = pd.to_datetime(X['cancellation_datetime'])
+    # X['checkin_date'] = pd.to_datetime(X['checkin_date'])
+    #
+    # # Calculate the time difference in days and assign -1 where date1 is NaN
+    # X['date_difference'] = (X[] - X['date1']).dt.days.fillna(-1)
+
+    X.drop([])
 
     X = X[X["days_before_checkin"] > -2]
     X = X[X["number_of_nights"] > 0]
@@ -193,12 +201,12 @@ if __name__ == '__main__':
     X = X.drop('is_cancelled', axis=1)
 
 
-    for feature in X:
-        correlation = np.cov(X[feature], y)[0, 1] / (np.std(X[feature]) * np.std(y))
-        fig = px.scatter(x=X[feature], y=y, title=f'Correlation between {feature} values and responses (Correlation:'
-                                                  f' {correlation:.2f})',
-                         labels={'x': f"{feature}", 'y': 'Price in $'})
-        pio.show()
+    # for feature in X:
+    #     correlation = np.cov(X[feature], y)[0, 1] / (np.std(X[feature]) * np.std(y))
+    #     fig = px.scatter(x=X[feature], y=y, title=f'Correlation between {feature} values and responses (Correlation:'
+    #                                               f' {correlation:.2f})',
+    #                      labels={'x': f"{feature}", 'y': 'Price in $'})
+    #     pio.show()
 
     # y = X['cancellation_datetime']
     # y = y.fillna(0)
