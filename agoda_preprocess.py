@@ -115,9 +115,6 @@ def preprocess_data(X: pd.DataFrame) -> pd.DataFrame:
     X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'])
 
     X = X.drop(['hotel_country_code', 'guest_nationality_country_name', 'hotel_city_code'], axis=1)
-    # X = pd.get_dummies(X, prefix='hotel_country_code_', columns=['hotel_country_code'])
-    # X = pd.get_dummies(X, prefix='guest_nationality_country_name_', columns=['guest_nationality_country_name'])
-    # X = pd.get_dummies(X, prefix='hotel_city_code_', columns=['hotel_city_code'])
 
     return X
 
