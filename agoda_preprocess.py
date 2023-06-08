@@ -69,53 +69,6 @@ class MeanValuesCalculator:
 #     # If no policy applies and they didn't cancel
 #     return 0
 
-def unknown_data_preprocess(X: pd.DataFrame):
-    # dropping unneeded columns
-    X = X.drop(['hotel_live_date', 'h_customer_id', 'customer_nationality', 'origin_country_code', 'language',
-                'original_payment_currency', 'original_payment_method', 'hotel_brand_code', 'hotel_id',
-                'hotel_chain_code'], axis=1)
-
-    # creating new columns for needed info
-    X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
-    X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
-
-    X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
-    X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
-
-    X['did_request'] = X['request_highfloor']+X['request_largebed']+X['request_nonesmoke']+X['request_latecheckin']\
-                       +X['request_largebed']+X['request_twinbeds']+X['request_airport']+X['request_earlycheckin']
-    X['did_request'] = X['did_request'].fillna(0)
-    X['did_request'] = X['did_request'].apply(lambda x: 1 if x != 0 else 0)
-
-    # preprocessing the cancellation policy
-    X['cancellation_policy_code'] = X['cancellation_policy_code'].fillna('')
-    X['cancel_for_free'] = 0  # default value
-
-    for i, cancellation_policy in enumerate(X['cancellation_policy_code']):
-        # need to check if inside policy
-        if cancellation_policy != '':
-            cancellation_parts = cancellation_policy.split('_')
-            for part in cancellation_parts:
-                if 'D' in part:
-                    first, second = part.split('D')[0], part.split('D')[1]
-                    if int(first) <= X['days_before_checkin'][i] and second[0] != '0':
-                        X['cancel_for_free'][i] = 1
-
-    # dropping columns that not needed (created alternative columns for these ones)
-    X = X.drop(['checkin_date', 'checkout_date', 'cancellation_policy', 'request_largebed', 'request_twinbeds',
-                'request_airport', 'request_earlycheckin', 'request_nonesmoke', 'request_latecheckin',
-                'request_highfloor', 'booking_datetime'])
-
-    X['is_user_logged_in'] = X['is_user_logged_in'].astype(bool).astype(int)
-    X['is_first_booking'] = X['is_first_booking'].astype(bool).astype(int)
-
-    # using get_dummies on values labels that their values has no numerical meaning
-    X = pd.get_dummies(X, prefix='accommadation_type_name_', columns=['accommadation_type_name'])
-    X = pd.get_dummies(X, prefix='charge_option_', columns=['charge_option'], dtype=int)
-    X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'])
-
-    X = X.drop(['hotel_country_code_', 'guest_nationality_country_name_', 'hotel_city_code_'])
-
 def preprocess_data(X: pd.DataFrame) -> pd.DataFrame:
     # dropping unneeded columns
     X = X.drop(['hotel_live_date', 'h_customer_id', 'customer_nationality', 'origin_country_code', 'language',
@@ -125,7 +78,6 @@ def preprocess_data(X: pd.DataFrame) -> pd.DataFrame:
     # creating new columns for needed info
     X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
-    X['cancellation_datetime'] = X['cancellation_datetime'].fillna(-1)
 
     X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
@@ -163,9 +115,6 @@ def preprocess_data(X: pd.DataFrame) -> pd.DataFrame:
     X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'])
 
     X = X.drop(['hotel_country_code', 'guest_nationality_country_name', 'hotel_city_code'], axis=1)
-    # X = pd.get_dummies(X, prefix='hotel_country_code_', columns=['hotel_country_code'])
-    # X = pd.get_dummies(X, prefix='guest_nationality_country_name_', columns=['guest_nationality_country_name'])
-    # X = pd.get_dummies(X, prefix='hotel_city_code_', columns=['hotel_city_code'])
 
     return X
 
