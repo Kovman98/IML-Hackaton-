@@ -78,14 +78,18 @@ def joint_preprocess(X: pd.DataFrame):
     X['is_user_logged_in'] = X['is_user_logged_in'].astype(bool).astype(int)
     X['is_first_booking'] = X['is_first_booking'].astype(bool).astype(int)
 
-    X = pd.get_dummies(X, prefix='hotel_country_code_', columns=['hotel_country_code'])
-    X = pd.get_dummies(X, prefix='accommadation_type_name_', columns=['accommadation_type_name'])
-    X = pd.get_dummies(X, prefix='guest_nationality_country_name_', columns=['guest_nationality_country_name'])
-    X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'])
-    X = pd.get_dummies(X, prefix='charge_option', columns=['charge_option'])
+    # X = pd.get_dummies(X, prefix='hotel_country_code_', columns=['hotel_country_code'])
+    X = X.drop('hotel_country_code', axis=1)
+    X = pd.get_dummies(X, prefix='accommadation_type_name_', columns=['accommadation_type_name'],dtype=int)
+    # X = pd.get_dummies(X, prefix='guest_nationality_country_name_', columns=['guest_nationality_country_name'])
+
+    X = X.drop('guest_nationality_country_name', axis=1)
+    X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'],dtype=int)
+    X = pd.get_dummies(X, prefix='charge_option', columns=['charge_option'],dtype=int)
 
     #X = pd.get_dummies(X, prefix='cancellation_policy_code_', columns=['cancellation_policy_code'])
-    X = pd.get_dummies(X, prefix='hotel_city_code_', columns=['hotel_city_code'])
+    # X = pd.get_dummies(X, prefix='hotel_city_code_', columns=['hotel_city_code'])
+    X = X.drop('hotel_city_code', axis=1)
     X['did_request'] = X['request_highfloor']+X['request_largebed']+X['request_nonesmoke']+X['request_latecheckin']\
                        +X['request_largebed']+X['request_twinbeds']+X['request_airport']+X['request_earlycheckin']
     # X['Cancellation Policy Applied'] = X.apply(
@@ -109,6 +113,7 @@ def preprocess_test(X: pd.DataFrame):
     # update all nan values with the median of the column in order to balance out value
     for col in y:
         X[col] = X[col].replace(np.nan, X[col].median(axis=0))
+    return X
 def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     """
     Load city daily temperature dataset and preprocess data.
@@ -147,6 +152,7 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X = X[X["original_selling_amount"] <= 5000]
     X = X[X['number_of_nights'].isin(range(10))]
     X = X[X['days_before_checkin'] <= 200]
+    X.reset_index()
     return X
 
 def make_distribution_graphs(df: pd.DataFrame) -> None:
@@ -224,8 +230,8 @@ if __name__ == '__main__':
     fig.update_traces(marker=dict(colors=colors))
     fig.update_layout(title="Cancellation Pie Chart")
     # fig.show()
-    X = X.reset_index()
-    y = X['is_cancelled']
+    X.reset_index()
+    y = X['is_cancelled'].astype(int)
     X = X.drop('is_cancelled', axis=1)
 
 
@@ -236,9 +242,15 @@ if __name__ == '__main__':
     #                                               f' {correlation:.2f})',
     #                      labels={'x': f"{feature}", 'y': 'Price in $'})
     #     pio.show()
-    features = ["number_of_nights","days_before_checkin","hotel_star_rating","no_of_adults","no_of_children",
-    "no_of_extra_bed","no_of_room","original_selling_amount",'number_of_nights','days_before_checkin']
-
+    # features = ["number_of_nights", "days_before_checkin", "hotel_star_rating", "no_of_adults","no_of_children",
+    # "no_of_extra_bed","no_of_room", "original_selling_amount", 'number_of_nights', 'days_before_checkin']
+    features = ['did_request','is_first_booking', 'is_user_logged_in']
+    for feature in features:
+        correlation = np.cov(X[feature], y)[0, 1] / (np.std(X[feature]) * np.std(y))
+        fig = px.scatter(x=X[feature], y=y, title=f'Correlation between {feature} values and responses (Correlation:'
+                                                      f' {correlation:.2f})',
+                             labels={'x': f"{feature}", 'y': 'Price in $'})
+        fig.show()
 
     # y = X['cancellation_datetime']
     # y = y.fillna(0)
