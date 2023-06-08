@@ -10,7 +10,6 @@ import requests
 import datetime
 import re
 
-import re
 
 def split_policy(policies):
     # Regular expression pattern
@@ -79,43 +78,31 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
     X['is_cancelled'].loc[X['is_cancelled'] != 0] = 1
     X = X.drop(['h_booking_id', 'hotel_live_date', 'h_customer_id', 'customer_nationality',
-                'origin_country_code', 'language','original_payment_currency'], axis=1)
+                'origin_country_code', 'language','original_payment_currency', 'original_payment_method',
+                'hotel_brand_code'], axis=1)
     X = X.drop_duplicates()
     X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
     X['cancellation_datetime'] = X['cancellation_datetime'].fillna(-1)
-    # for i in range(len(X[0:])):
-    #     if (X['cancellation_datetime'][i] != -1):
-    #         X['days_difference'][i] = (X['cancellation_datetime'][i] - X['checkin_date'][i]).dt.days
+
+    for i in range(X.shape[0]):
+        if (X['cancellation_datetime'][i] != -1):
+            X['days_difference'][i] = (X['cancellation_datetime'][i] - X['checkin_date'][i]).dt.days
 
     X = X[X["days_before_checkin"] > -2]
     X = X[X["number_of_nights"] > 0]
 
-    cancelled_bookings = X[X['is_cancelled'] == 1]
-    uncancelled_bookings = X[X['is_cancelled'] == 0]
+    X['is_user_logged_in'] = X['is_user_logged_in'].astype(bool).astype(int)
+    X['is_first_booking'] = X['is_first_booking'].astype(bool).astype(int)
 
-
-    # conversion_rates = {
-    #     'AED': 0.272,'ARS': 0.004,'AUD': 0.665,'BDT': 0.0092,'BHD': 2.659,'BRL': 0.202,'CAD': 0.747,
-    #     'CHF': 1.098,'CNY': 0.1402,'CZK': 0.452,'DKK': 0.1436,'EGP': 0.0323,'EUR': 1.0699,
-    #     'FJD': 0.4471,'GBP': 1.2438,'HKD': 0.1275,'HUF': 0.0029,'IDR': 0.0000671,'ILS': 0.2735,'INR': 0.0121,
-    #     'JOD': 1.41,'JPY': 0.00713,'KHR': 0.0002421,'KRW': 0.000764,'KWD': 3.249,'KZT': 0.00224,'LAK': 0.0000554,
-    #     'LKR': 0.003427,'MXN': 0.0575,'MYR': 0.2173,'NGN': 0.00216,'NOK': 0.0906,'NZD': 0.6035,'OMR': 2.5973,
-    #     'PHP': 0.0178,'PKR': 0.00348,'PLN': 0.2384,'QAR': 0.274,'RON': 0.2157,'RUB': 0.0122,'SAR': 0.2666,
-    #     'SEK': 0.09197,'SGD': 0.7415,'THB': 0.028705,'TRY': 0.04302,'TWD': 0.0324,'UAH': 0.02711,'USD': 1,
-    #     'VND': 0.0000427,'XPF': 0.00896,'ZAR': 0.052367
-    # }
-
-
-    # def convert_to_USD(row):
-    #     amount = row['original_selling_amount']
-    #     currency = row['original_payment_currency']
-    #     if currency in conversion_rates:
-    #         return amount*conversion_rates[currency]
-    #     else:
-    #         return amount
-
-    # X["payment_nis"] = X.apply(convert_to_USD,axis = 1)
+    X = X[X["hotel_star_rating"].between(0, 5)]
+    X = X[X["no_of_adults"].isin(range(12))]
+    X = X[X["no_of_children"].isin(range(6))]
+    X = X[X["no_of_extra_bed"].isin(range(3))]
+    X = X[X["no_of_room"].isin(range(10))]
+    X = X[X["original_selling_amount"].isin(range(6000))]
+    X = X[X['number_of_nights'].isin(range(10))]
+    X = X[X['days_before_checkin'].isin(range(200))]
 
     X = pd.get_dummies(X, prefix='hotel_country_code_', columns=['hotel_country_code'])
     X = pd.get_dummies(X, prefix='accommadation_type_name_', columns=['accommadation_type_name'])
@@ -128,14 +115,6 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     # X['Cancellation Policy Applied'] = X.apply(
     #     lambda row: apply_policy(row['days_difference'], row['Cancelled'], row['Policy']), axis=1)
 
-    X = X[X["hotel_star_rating"].between(0, 5)]
-    X = X[X["no_of_adults"].isin(range(12))]
-    X = X[X["no_of_children"].isin(range(6))]
-    X = X[X["no_of_extra_bed"].isin(range(3))]
-    X = X[X["no_of_room"].isin(range(10))]
-    X = X[X["original_selling_amount"].isin(range(6000))]
-    X = X[X['number_of_nights'].isin(range(10))]
-    X = X[X['days_before_checkin'].isin(range(200))]
     return X
 
 def make_distribution_graphs(df: pd.DataFrame) -> None:
@@ -191,11 +170,14 @@ def make_distribution_graphs(df: pd.DataFrame) -> None:
 if __name__ == '__main__':
     np.random.seed(0)
     # Question 1 - Load and preprocessing of city temperature dataset
-    X = pd.read_csv("dataset/agoda_cancellation_train.csv", parse_dates=['booking_datetime','checkout_date','cancellation_datetime'])
+    X = pd.read_csv("dataset/agoda_cancellation_train.csv", parse_dates=['booking_datetime', 'checkout_date', 'cancellation_datetime'])
     # date_columns = ['booking_datetime', 'checkin_date', 'checkout_date', 'cancellation_datetime']
 
     # Convert date columns to datetime objects
     X['checkin_date'] = pd.to_datetime(X['checkin_date'], format='%d/%m/%Y %H:%M')
+    ids = X['h_booking_id']
+    X.drop('h_booking_id')
+
     X = preprocess_train(X)
     make_distribution_graphs(X)
     count = X['is_cancelled'].value_counts()
@@ -210,12 +192,12 @@ if __name__ == '__main__':
     X = X.drop('is_cancelled', axis=1)
 
 
-    # for feature in X:
-    #     correlation = np.cov(X[feature], y)[0, 1] / (np.std(X[feature]) * np.std(y))
-    #     fig = px.scatter(x=X[feature], y=y, title=f'Correlation between {feature} values and responses (Correlation:'
-    #                                               f' {correlation:.2f})',
-    #                      labels={'x': f"{feature}", 'y': 'Price in $'})
-    #     pio.show()
+    for feature in X:
+        correlation = np.cov(X[feature], y)[0, 1] / (np.std(X[feature]) * np.std(y))
+        fig = px.scatter(x=X[feature], y=y, title=f'Correlation between {feature} values and responses (Correlation:'
+                                                  f' {correlation:.2f})',
+                         labels={'x': f"{feature}", 'y': 'Price in $'})
+        pio.show()
 
     # y = X['cancellation_datetime']
     # y = y.fillna(0)
