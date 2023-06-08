@@ -11,109 +11,178 @@ import datetime
 import re
 
 
-def split_policy(policies):
-    # Regular expression pattern
-    pattern = r"(\d+)D(\d+)([PN])"
+class MeanValuesCalculator:
+    def __init__(self, dataframe):
+        self.dataframe = dataframe
+        self.mean_values = self.calculate_mean_values()
 
-    # Split the policies
-    policies = policies.split('_')
-
-    # Apply regex to each policy
-    results = []
-    for policy in policies:
-        match = re.match(pattern, policy)
-        if match:
-            days, charge, charge_type = match.groups()
-
-            # Convert to proper types
-            days = int(days)
-            charge = int(charge)
-            charge_type = 'Percentage' if charge_type == 'P' else 'Nights'
-
-            results.append((days, charge, charge_type))
-
-    return results
+    def calculate_mean_values(self):
+        mean_values = self.dataframe.mean()
+        return mean_values
 
 
-def apply_policy(days_diff, cancelled, policy_str):
-    policies = split_policy(policy_str)
+# def split_policy(policies):
+#     # Regular expression pattern
+#     pattern = r"(\d+)D(\d+)([PN])"
+#
+#     # Split the policies
+#     policies = policies.split('_')
+#
+#     # Apply regex to each policy
+#     results = []
+#     for policy in policies:
+#         match = re.match(pattern, policy)
+#         if match:
+#             days, charge, charge_type = match.groups()
+#
+#             # Convert to proper types
+#             days = int(days)
+#             charge = int(charge)
+#             charge_type = 'Percentage' if charge_type == 'P' else 'Nights'
+#
+#             results.append((days, charge, charge_type))
+#
+#     return results
+#
+#
+# def apply_policy(days_diff, cancelled, policy_str):
+#     policies = split_policy(policy_str)
+#
+#     # Sort policies by days, in descending order
+#     policies.sort(key=lambda x: x[0], reverse=True)
+#
+#     for policy in policies:
+#         policy_days, charge, charge_type = policy
+#         if days_diff <= policy_days:
+#             if cancelled:
+#                 if charge_type == 'P' and charge > 0:  # They would pay a charge
+#                     return -1
+#                 else:  # They wouldn't pay a charge (charge is 0 or it's charged per nights, which is not applicable here)
+#                     return 1
+#             else:  # Didn't cancel
+#                 return 0
+#
+#     # If no policy applies and they cancelled, they wouldn't pay a charge
+#     if cancelled:
+#         return 1
+#
+#     # If no policy applies and they didn't cancel
+#     return 0
 
-    # Sort policies by days, in descending order
-    policies.sort(key=lambda x: x[0], reverse=True)
+def unknown_data_preprocess(X: pd.DataFrame):
+    # dropping unneeded columns
+    X = X.drop(['hotel_live_date', 'h_customer_id', 'customer_nationality', 'origin_country_code', 'language',
+                'original_payment_currency', 'original_payment_method', 'hotel_brand_code', 'hotel_id',
+                'hotel_chain_code'], axis=1)
 
-    for policy in policies:
-        policy_days, charge, charge_type = policy
-        if days_diff <= policy_days:
-            if cancelled:
-                if charge_type == 'P' and charge > 0:  # They would pay a charge
-                    return -1
-                else:  # They wouldn't pay a charge (charge is 0 or it's charged per nights, which is not applicable here)
-                    return 1
-            else:  # Didn't cancel
-                return 0
+    # creating new columns for needed info
+    X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
+    X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
 
-    # If no policy applies and they cancelled, they wouldn't pay a charge
-    if cancelled:
-        return 1
+    X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
+    X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
 
-    # If no policy applies and they didn't cancel
-    return 0
+    X['did_request'] = X['request_highfloor']+X['request_largebed']+X['request_nonesmoke']+X['request_latecheckin']\
+                       +X['request_largebed']+X['request_twinbeds']+X['request_airport']+X['request_earlycheckin']
+    X['did_request'] = X['did_request'].fillna(0)
+    X['did_request'] = X['did_request'].apply(lambda x: 1 if x != 0 else 0)
 
+    # preprocessing the cancellation policy
+    X['cancellation_policy'] = X['cancellation_policy'].fillna('')
+    X['cancel_for_free'] = 0  # default value
 
-# Then, you can use this function to create a new column in your DataFrame:
+    for i, cancellation_policy in enumerate(X['cancellation_policy']):
+        # need to check if inside policy
+        if cancellation_policy != '':
+            cancellation_parts = cancellation_policy.split('_')
+            for part in cancellation_parts:
+                if 'D' in part:
+                    first, second = part.split('D')[0], part.split('D')[1]
+                    if int(first) <= X['days_before_checkin'][i] and second[0] != '0':
+                        X['cancel_for_free'][i] = 1
 
-def joint_preprocess(X: pd.DataFrame):
-    X = X.drop(['hotel_live_date', 'h_customer_id', 'customer_nationality',
-                'origin_country_code', 'language', 'original_payment_currency', 'original_payment_method',
-                'hotel_brand_code'], axis=1)
+    # dropping columns that not needed (created alternative columns for these ones)
+    X = X.drop(['checkin_date', 'checkout_date', 'cancellation_policy', 'request_largebed', 'request_twinbeds',
+                'request_airport', 'request_earlycheckin', 'request_nonesmoke', 'request_latecheckin',
+                'request_highfloor', 'booking_datetime'])
 
-    X = X.drop_duplicates()
+    X['is_user_logged_in'] = X['is_user_logged_in'].astype(bool).astype(int)
+    X['is_first_booking'] = X['is_first_booking'].astype(bool).astype(int)
 
+    # using get_dummies on values labels that their values has no numerical meaning
+    X = pd.get_dummies(X, prefix='accommadation_type_name_', columns=['accommadation_type_name'])
+    X = pd.get_dummies(X, prefix='charge_option_', columns=['charge_option'], dtype=int)
+    X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'])
+
+    X = X.drop(['hotel_country_code_', 'guest_nationality_country_name_', 'hotel_city_code_'])
+
+def preprocess_data(X: pd.DataFrame) -> pd.DataFrame:
+    # dropping unneeded columns
+    X = X.drop(['hotel_live_date', 'h_customer_id', 'customer_nationality', 'origin_country_code', 'language',
+                'original_payment_currency', 'original_payment_method', 'hotel_brand_code', 'hotel_id',
+                'hotel_chain_code'], axis=1)
+
+    # creating new columns for needed info
     X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
     X['cancellation_datetime'] = X['cancellation_datetime'].fillna(-1)
 
     X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
-    X['is_user_logged_in'] = X['is_user_logged_in'].astype(bool).astype(int)
-    X['is_first_booking'] = X['is_first_booking'].astype(bool).astype(int)
 
-    # X = pd.get_dummies(X, prefix='hotel_country_code_', columns=['hotel_country_code'])
-    X = X.drop('hotel_country_code', axis=1)
-    X = pd.get_dummies(X, prefix='accommadation_type_name_', columns=['accommadation_type_name'],dtype=int)
-    # X = pd.get_dummies(X, prefix='guest_nationality_country_name_', columns=['guest_nationality_country_name'])
-
-    X = X.drop('guest_nationality_country_name', axis=1)
-    X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'],dtype=int)
-    X = pd.get_dummies(X, prefix='charge_option', columns=['charge_option'],dtype=int)
-
-    #X = pd.get_dummies(X, prefix='cancellation_policy_code_', columns=['cancellation_policy_code'])
-    # X = pd.get_dummies(X, prefix='hotel_city_code_', columns=['hotel_city_code'])
-    X = X.drop('hotel_city_code', axis=1)
     X['did_request'] = X['request_highfloor']+X['request_largebed']+X['request_nonesmoke']+X['request_latecheckin']\
                        +X['request_largebed']+X['request_twinbeds']+X['request_airport']+X['request_earlycheckin']
-    # X['Cancellation Policy Applied'] = X.apply(
-    #     lambda row: apply_policy(row['days_difference'], row['Cancelled'], row['Policy']), axis=1)
-    X = X.drop(['booking_datetime', 'checkin_date', 'checkout_date'], axis=1)
-    X = X.drop(['hotel_id', 'cancellation_policy_code', 'hotel_chain_code', 'request_highfloor'], axis=1)
-    X = X.drop(['cancellation_datetime', 'request_largebed', 'request_twinbeds', 'request_airport',
-                'request_earlycheckin', 'request_nonesmoke', 'request_latecheckin', 'hotel_area_code'], axis=1)
     X['did_request'] = X['did_request'].fillna(0)
     X['did_request'] = X['did_request'].apply(lambda x: 1 if x != 0 else 0)
 
+    # preprocessing the cancellation policy
+    X['cancellation_policy'] = X['cancellation_policy'].fillna('')
+    X['cancel_for_free'] = 0  # default value
+
+    for i, cancellation_policy in enumerate(X['cancellation_policy']):
+        # need to check if inside policy
+        if cancellation_policy != '':
+            cancellation_parts = cancellation_policy.split('_')
+            for part in cancellation_parts:
+                if 'D' in part:
+                    first, second = part.split('D')[0], part.split('D')[1]
+                    if int(first) <= X['days_before_checkin'][i] and second[0] != '0':
+                        X['cancel_for_free'][i] = 1
+
+    # dropping columns that not needed (created alternative columns for these ones)
+    X = X.drop(['checkin_date', 'checkout_date', 'cancellation_datetime', 'cancellation_policy', 'request_largebed',
+                'request_twinbeds', 'request_airport', 'request_earlycheckin', 'request_nonesmoke',
+                'request_latecheckin', 'request_highfloor', 'booking_datetime'])
+
+    X['is_user_logged_in'] = X['is_user_logged_in'].astype(bool).astype(int)
+    X['is_first_booking'] = X['is_first_booking'].astype(bool).astype(int)
+
+    # using get_dummies on values labels that their values has no numerical meaning
+    X = pd.get_dummies(X, prefix='accommadation_type_name_', columns=['accommadation_type_name'])
+    X = pd.get_dummies(X, prefix='charge_option_', columns=['charge_option'], dtype=int)
+    X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'])
+
+    X = X.drop(['hotel_country_code_', 'guest_nationality_country_name_', 'hotel_city_code_'])
+    # X = pd.get_dummies(X, prefix='hotel_country_code_', columns=['hotel_country_code'])
+    # X = pd.get_dummies(X, prefix='guest_nationality_country_name_', columns=['guest_nationality_country_name'])
+    # X = pd.get_dummies(X, prefix='hotel_city_code_', columns=['hotel_city_code'])
+
     return X
 
 
-def preprocess_test(X: pd.DataFrame):
+def preprocess_test(X: pd.DataFrame, mValues: pd.Series):
     X = X.replace("nan", np.nan)
-    X = X.dropna(axis=0)
 
-    y =  ["number_of_nights","days_before_checkin","hotel_star_rating","no_of_adults","no_of_children",
-    "no_of_extra_bed","no_of_room","original_selling_amount",'number_of_nights','days_before_checkin']
-    # update all nan values with the median of the column in order to balance out value
-    for col in y:
-        X[col] = X[col].replace(np.nan, X[col].median(axis=0))
+    # Iterate over each column in the test data
+    for col in X.columns:
+        # Check if the column has missing values
+        if X[col].isnull().any():
+            # Replace missing values with the mean value from mValues
+            X[col] = X[col].fillna(mValues[col])
+
     return X
+
+
 def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     """
     Load city daily temperature dataset and preprocess data.
@@ -127,20 +196,7 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     Design matrix and response vector (Temp)
     """
 
-
-    # X['cancellation_datetime'] = X['cancellation_datetime'].fillna(-1)
-
-    # # for i in range(X.shape[0]):
-    # #     if (X['cancellation_datetime'][i] != -1):
-    # #         X['days_difference'][i] = (X['cancellation_datetime'][i].dt.days - X['checkin_date'][i].dt.days)
-    #
-    # X['cancellation_datetime'] = pd.to_datetime(X['cancellation_datetime'])
-    # X['checkin_date'] = pd.to_datetime(X['checkin_date'])
-    #
-    # # Calculate the time difference in days and assign -1 where date1 is NaN
-    # X['date_difference'] = (X[] - X['date1']).dt.days.fillna(-1)
-
-    # X.drop([])
+    X = X.dropna().drop_duplicates()
 
     X = X[X["number_of_nights"] > 0]
     X = X[X["days_before_checkin"] > -2]
@@ -154,6 +210,7 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X = X[X['days_before_checkin'] <= 200]
     X.reset_index()
     return X
+
 
 def make_distribution_graphs(df: pd.DataFrame) -> None:
 
@@ -219,7 +276,7 @@ if __name__ == '__main__':
 
     X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
     X['is_cancelled'].loc[X['is_cancelled'] != 0] = 1
-    X = joint_preprocess(X)
+    X = preprocess_data(X)
     X = preprocess_train(X)
     # make_distribution_graphs(X)
     count = X['is_cancelled'].value_counts()
