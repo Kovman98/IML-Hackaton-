@@ -62,7 +62,17 @@ def apply_policy(days_diff, cancelled, policy_str):
 
 # Then, you can use this function to create a new column in your DataFrame:
 
+def remove_data(X: pd.DataFrame):
+    X = X.drop(['hotel_live_date', 'h_customer_id', 'customer_nationality',
+                'origin_country_code', 'language', 'original_payment_currency', 'original_payment_method',
+                'hotel_brand_code'], axis=1)
+    X = X.drop_duplicates()
+    X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
+    X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
+    X['cancellation_datetime'] = X['cancellation_datetime'].fillna(-1)
 
+
+    return X
 def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     """
     Load city daily temperature dataset and preprocess data.
@@ -77,10 +87,8 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     """
     X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
     X['is_cancelled'].loc[X['is_cancelled'] != 0] = 1
-    X = X.drop(['hotel_live_date', 'h_customer_id', 'customer_nationality',
-                'origin_country_code', 'language','original_payment_currency', 'original_payment_method',
-                'hotel_brand_code'], axis=1)
-    X = X.drop_duplicates()
+    X = remove_data(X)
+
     X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
     X['cancellation_datetime'] = X['cancellation_datetime'].fillna(-1)
