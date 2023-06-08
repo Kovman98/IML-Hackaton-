@@ -146,8 +146,8 @@ def preprocess_data(X: pd.DataFrame) -> pd.DataFrame:
             for part in cancellation_parts:
                 if 'D' in part:
                     first, second = part.split('D')[0], part.split('D')[1]
-                    if int(first) <= X['days_before_checkin'][i] and second[0] != '0':
-                        X['cancel_for_free'][i] = 1
+                    if int(first) <= X['days_before_checkin'].loc[i] and second[0] != '0':
+                        X['cancel_for_free'].loc[i] = 1
 
     # dropping columns that not needed (created alternative columns for these ones)
     X = X.drop(['checkin_date', 'checkout_date', 'cancellation_datetime', 'cancellation_policy_code', 'request_largebed',
@@ -295,13 +295,42 @@ if __name__ == '__main__':
 
     # features = ["number_of_nights", "days_before_checkin", "hotel_star_rating", "no_of_adults","no_of_children",
     # "no_of_extra_bed","no_of_room", "original_selling_amount", 'number_of_nights', 'days_before_checkin']
-    features = ['did_request','is_first_booking', 'is_user_logged_in']
+    # features = ['did_request','is_first_booking', 'is_user_logged_in']
+    # for feature in features:
+    #     correlation = np.cov(X[feature], y)[0, 1] / (np.std(X[feature]) * np.std(y))
+    #     fig = px.scatter(x=X[feature], y=y, title=f'Correlation between {feature} values and is_cancelled (Correlation:'
+    #                                                   f' {correlation:.2f})',
+    #                          labels={'x': f"{feature}", 'y': 'Did Cancel'})
+    #     fig.show()
+
+    features = ["number_of_nights", "days_before_checkin", "hotel_star_rating", "no_of_adults",
+                "no_of_children", "no_of_extra_bed", "no_of_room", "original_selling_amount",
+                "cancel_for_free","did_request","is_first_booking","is_user_logged_in"]
+
+    correlations = []
+
     for feature in features:
         correlation = np.cov(X[feature], y)[0, 1] / (np.std(X[feature]) * np.std(y))
-        fig = px.scatter(x=X[feature], y=y, title=f'Correlation between {feature} values and responses (Correlation:'
-                                                      f' {correlation:.2f})',
-                             labels={'x': f"{feature}", 'y': 'Price in $'})
-        fig.show()
+        correlations.append(correlation)
+
+    # Find the index of the feature with the highest correlation
+    max_corr_index = np.argmax(np.abs(correlations))
+
+    # Create a color list for the bar plot
+    colors = ['#ffcccc'] * len(features)  # Default color for all features
+    colors[max_corr_index] = '#ff0000'  # Color for the feature with highest correlation
+
+    # Create the bar plot using Plotly
+    fig = go.Figure(data=go.Bar(x=features, y=correlations, marker=dict(color=colors)))
+
+    # Customize the layout of the plot
+    fig.update_layout(title='Correlations between Features and Target Variable',
+                      xaxis_title='Features',
+                      yaxis_title='Correlation',
+                      plot_bgcolor='rgba(0, 0, 0, 0)')  # Set plot background color to transparent
+
+    # Show the plot
+    fig.show()
 
     # y = X['cancellation_datetime']
     # y = y.fillna(0)

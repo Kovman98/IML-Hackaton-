@@ -2,17 +2,23 @@ import sys
 from typing import Tuple
 import numpy as np
 import pandas as pd
+from sklearn.cluster import KMeans
 from sklearn.model_selection import cross_val_score, train_test_split
 from xgboost import XGBClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score,f1_score
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import Lasso
 from sklearn.linear_model import LogisticRegression
 from scipy.special import expit
 from sklearn.ensemble import RandomForestRegressor
 import task_1, task_2, agoda_preprocess
+import plotly.graph_objects as go
+from scipy.stats import pearsonr
+from plotly.subplots import make_subplots
+
+
 
 
 def find_best_threshold_linear(X, y, model):
@@ -144,6 +150,50 @@ def model_selection(train_x: pd.DataFrame, train_y: pd.Series, test_x: pd.DataFr
     print("Accuracy of Lasso Regression:", accuracy_lasso)
     print("Accuracy of random forest:", accuracy_rf)
     print("Accuracy of Logistic Regression:", accuracy_logistic)
+    # Calculate the F1 macro score for each model
+    f1_macro_linear = f1_score(test_y, predictions, average='macro')
+    f1_macro_ridge = f1_score(test_y, predictions_ridge, average='macro')
+    f1_macro_lasso = f1_score(test_y, predictions_lasso, average='macro')
+    f1_macro_logistic = f1_score(test_y, logistic_pred, average='macro')
+    f1_macro_rf = f1_score(test_y, rf_predictions, average='macro')
+
+    # Print the F1 macro scores
+    print("F1 Macro Score - Linear:", f1_macro_linear)
+    print("F1 Macro Score - Ridge:", f1_macro_ridge)
+    print("F1 Macro Score - Lasso:", f1_macro_lasso)
+    print("F1 Macro Score - Logistic:", f1_macro_logistic)
+    print("F1 Macro Score - Random Forest:", f1_macro_rf)
+
+
+def clusterin(X):
+    train, test = split_train_test(X)
+    y_corr = pd.DataFrame()
+    y_corr['is_cancelled'] = test['is_cancelled'].astype(int)
+    train_x = train.drop('is_cancelled', axis = 1)
+    test_x = test.drop('is_cancelled', axis = 1)
+    num_clusters = []
+    cancel_prob = []
+
+    best_num_cluster = None
+    best_correlation = -1
+
+    fig = make_subplots(rows=3, cols=3,
+                        subplot_titles=[f"Number of Clusters: {num_cluster}" for num_cluster in range(3, 10)])
+
+    for i, num_cluster in enumerate(range(3, 10)):
+        kmeans = KMeans(n_clusters=num_cluster)
+        kmeans.fit(train_x)
+        prediction = kmeans.predict(test_x)
+        y_corr['cluster_label'] = prediction
+        cluster_cancel_prob = y_corr.groupby('cluster_label')['is_cancelled'].mean()
+
+        fig.add_trace(go.Scatter(x=cluster_cancel_prob.index, y=cluster_cancel_prob.values, mode='lines+markers'),
+                      row=(i // 3) + 1, col=(i % 3) + 1)
+
+    fig.update_layout(title='Cluster Cancellation Probability for Different Numbers of Clusters')
+    fig.update_xaxes(title_text='Cluster Num')
+    fig.update_yaxes(title_text='Cancellation Probability')
+    fig.show()
 
 
 if __name__ == '__main__':
@@ -176,6 +226,7 @@ if __name__ == '__main__':
 
         # model selecting part:
         # model_selection(train_x, train_y, test_x, test_y)
+        # clusterin(clean_train)
 
         # task 1:
         best_model = XGBClassifier(n_estimators=100, max_depth=2, learning_rate=0.1).fit(train_x, train_y)
