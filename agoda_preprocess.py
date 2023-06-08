@@ -121,10 +121,9 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     -------
     Design matrix and response vector (Temp)
     """
-    X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
-    X['is_cancelled'].loc[X['is_cancelled'] != 0] = 1
 
-    X['cancellation_datetime'] = X['cancellation_datetime'].fillna(-1)
+
+    # X['cancellation_datetime'] = X['cancellation_datetime'].fillna(-1)
 
     # # for i in range(X.shape[0]):
     # #     if (X['cancellation_datetime'][i] != -1):
@@ -212,6 +211,9 @@ if __name__ == '__main__':
     ids = X['h_booking_id']
     X = X.drop('h_booking_id', axis=1)
 
+    X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
+    X['is_cancelled'].loc[X['is_cancelled'] != 0] = 1
+    X = joint_preprocess(X)
     X = preprocess_train(X)
     # make_distribution_graphs(X)
     count = X['is_cancelled'].value_counts()
@@ -222,8 +224,10 @@ if __name__ == '__main__':
     fig.update_traces(marker=dict(colors=colors))
     fig.update_layout(title="Cancellation Pie Chart")
     # fig.show()
+    X = X.reset_index()
     y = X['is_cancelled']
     X = X.drop('is_cancelled', axis=1)
+
 
 
     # for feature in X:
@@ -232,6 +236,9 @@ if __name__ == '__main__':
     #                                               f' {correlation:.2f})',
     #                      labels={'x': f"{feature}", 'y': 'Price in $'})
     #     pio.show()
+    features = ["number_of_nights","days_before_checkin","hotel_star_rating","no_of_adults","no_of_children",
+    "no_of_extra_bed","no_of_room","original_selling_amount",'number_of_nights','days_before_checkin']
+
 
     # y = X['cancellation_datetime']
     # y = y.fillna(0)
