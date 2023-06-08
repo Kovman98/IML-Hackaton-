@@ -11,7 +11,11 @@ from xgboost import XGBClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import accuracy_score
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import Lasso
+from sklearn.linear_model import LogisticRegression
 from scipy.special import expit
+import matplotlib.pyplot as plt
 
 
 def find_best_threshold_linear(X, y):
@@ -52,6 +56,7 @@ def find_best_threshold_linear(X, y):
                 best_accuracy = accuracy
 
     return best_threshold
+
 
 def find_best_alpha_threshold(model, X, y):
     # Define a range of alpha values to test
@@ -145,42 +150,12 @@ def split_train_test(X: pd.DataFrame, y: pd.Series, train_proportion: float = .7
     return train_x, test_x
 
 
-if __name__ == '__main__':
-    # loading the data and shuffling it
-    dataFrame: pd.DataFrame = pd.read_csv("dataset/agoda_cancellation_train.csv")
-    dataFrame = dataFrame.sample(frac=1).reset_index(drop=True)
-
-    # splitting into X and y and into train and test
-    y: pd.Series = dataFrame["cancellation_datetime"]
-    y = pd.Series(np.where(y == 0, 0, 1))
-    X: pd.DataFrame = dataFrame.drop('cancellation_datetime', axis=1)
-
-    train, test = split_train_test(dataFrame, y)
-    # preprocess on train:
-
-    # preprocess on test:
-
-
-    # splitting train and test sets into x and y
-    train_y = train["cancellation_datetime"]
-    train_x = train.drop('cancellation_datetime', axis=1)
-    test_y = test["cancellation_datetime"]
-    test_x = test.drop('cancellation_datetime', axis=1)
-
-    # todo needed? maybe
-    # deviation into mini train and validation sets
-    # train_smaller, validation = split_train_test(train_x, train_y)
-    #
-    # train_smaller_x = train_smaller["cancellation_datetime"]
-    # train_smaller_y = train_smaller.drop('cancellation_datetime', axis=1)
-    # validation_x = validation["cancellation_datetime"]
-    # validation_y = validation.drop('cancellation_datetime', axis=1)
-
+def model_selection(train_x: pd.DataFrame, train_y: pd.Series, test_x: pd.DataFrame, test_y: pd.Series):
     # tree model
     best_depth = 99
     best_accuracy = 1
     for i in range(2, 11):
-        tree_model = XGBClassifier(n_estimators=100, max_depth=i, learning_rate=0.1)  # todo max_depth should be chosen in for loop
+        tree_model = XGBClassifier(n_estimators=100, max_depth=i, learning_rate=0.1)
         scores = cross_val_score(tree_model, train_x, train_y, cv=5, scoring='accuracy')
         average_accuracy = np.mean(scores)
 
@@ -221,6 +196,62 @@ if __name__ == '__main__':
     print("Accuracy of Ridge Regression:", accuracy_ridge)
     print("Accuracy of Lasso Regression:", accuracy_lasso)
     print("Accuracy of Logistic Regression:", accuracy_logistic)
+
+
+if __name__ == '__main__':
+    # loading the data and shuffling it
+    dataFrame: pd.DataFrame = pd.read_csv("dataset/agoda_cancellation_train.csv")
+    dataFrame = dataFrame.sample(frac=1).reset_index(drop=True)
+
+    # splitting into X and y and into train and test
+    y: pd.Series = dataFrame["cancellation_datetime"]
+    y = pd.Series(np.where(y == 0, 0, 1))
+    X: pd.DataFrame = dataFrame.drop('cancellation_datetime', axis=1)
+
+    train, test = split_train_test(X, y)
+
+    grouped_policies = train.groupby('cancellation_datetime')['cancellation_policy_code'].apply(list).to_dict()
+    for count, policies in grouped_policies.items():
+        # print(f'Group with {count} cancellation(s): {policies}')
+        print(count)
+    # policies_high_cancellation = cancellation_rates.sort_values(ascending=False).index
+    # print(policies_high_cancellation)
+    # threshold = 0.5  # Define your threshold here
+    # train['Cluster'] = np.where(train['cancellation_policy_code'].isin(policies_high_cancellation), 'High Cancellation',
+    #                          'Low Cancellation')
+    # cluster_counts = train['Cluster'].value_counts()
+    # plt.bar(cluster_counts.index, cluster_counts.values)
+    # plt.xlabel('Cluster')
+    # plt.ylabel('Count')
+    # plt.title('Policy Clusters Based on Cancellation Likelihood')
+    # plt.show()
+
+    # preprocess on train:
+
+    # preprocess on test:
+
+
+    # splitting train and test sets into x and y
+    train_y = train["cancellation_datetime"]
+    train_x = train.drop('cancellation_datetime', axis=1)
+    test_y = test["cancellation_datetime"]
+    test_x = test.drop('cancellation_datetime', axis=1)
+
+
+
+
+
+    # todo needed? maybe
+    # deviation into mini train and validation sets
+    # train_smaller, validation = split_train_test(train_x, train_y)
+    #
+    # train_smaller_x = train_smaller["cancellation_datetime"]
+    # train_smaller_y = train_smaller.drop('cancellation_datetime', axis=1)
+    # validation_x = validation["cancellation_datetime"]
+    # validation_y = validation.drop('cancellation_datetime', axis=1)
+
+    # model selecting:
+    model_selection(train_x, train_y, test_x, test_y)
 
 
 
