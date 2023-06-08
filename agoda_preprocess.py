@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.io as pio
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from matplotlib import pyplot as plt
 import sklearn
 import requests
@@ -83,13 +84,15 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X['days_before_checkin'] = (X['checkin_date'] - X['booking_datetime']).dt.days
     X['number_of_nights'] = (X['checkout_date'] - X['checkin_date']).dt.days
     X['cancellation_datetime'] = X['cancellation_datetime'].fillna(-1)
-    for i in range(len(X[0:])):
-        if (X['cancellation_datetime'][i] != -1):
-            X['days_difference'][i] = (X['cancellation_datetime'][i] - X['checkin_date'][i]).dt.days
+    # for i in range(len(X[0:])):
+    #     if (X['cancellation_datetime'][i] != -1):
+    #         X['days_difference'][i] = (X['cancellation_datetime'][i] - X['checkin_date'][i]).dt.days
 
     X = X[X["days_before_checkin"] > -2]
     X = X[X["number_of_nights"] > 0]
 
+    cancelled_bookings = X[X['is_cancelled'] == 1]
+    uncancelled_bookings = X[X['is_cancelled'] == 0]
 
 
     # conversion_rates = {
@@ -122,16 +125,67 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X = pd.get_dummies(X, prefix='hotel_city_code_', columns=['hotel_city_code'])
 
 
-    X['Cancellation Policy Applied'] = X.apply(
-        lambda row: apply_policy(row['days_difference'], row['Cancelled'], row['Policy']), axis=1)
+    # X['Cancellation Policy Applied'] = X.apply(
+    #     lambda row: apply_policy(row['days_difference'], row['Cancelled'], row['Policy']), axis=1)
 
     X = X[X["hotel_star_rating"].between(0, 5)]
     X = X[X["no_of_adults"].isin(range(12))]
     X = X[X["no_of_children"].isin(range(6))]
     X = X[X["no_of_extra_bed"].isin(range(3))]
     X = X[X["no_of_room"].isin(range(10))]
+    X = X[X["original_selling_amount"].isin(range(6000))]
+    X = X[X['number_of_nights'].isin(range(10))]
+    X = X[X['days_before_checkin'].isin(range(200))]
     return X
 
+def make_distribution_graphs(df: pd.DataFrame) -> None:
+
+    # Filter data for cancelled and uncancelled bookings
+    cancelled_bookings = df[df['is_cancelled'] == 1]
+    uncancelled_bookings = df[df['is_cancelled'] == 0]
+
+    # Create figure and subplots
+    fig = make_subplots(rows=2, cols=4,
+                        subplot_titles=['Distribution of Number of Nights', 'Distribution of Days Before Check-in',
+                                        'Distribution of Hotel Star Rating', 'Distribution of Number of Adults',
+                                        'Distribution of Number of Children', 'Distribution of Number of Rooms',
+                                        'Distribution of Original Selling Amount', 'Distribution of First Booking'])
+
+    # Define the parameter names
+    parameters = ['number_of_nights', 'days_before_checkin', 'hotel_star_rating', 'no_of_adults', 'no_of_children',
+                  'no_of_room',
+                  'original_selling_amount', 'is_first_booking']
+
+    # Add traces for each parameter
+    for i, parameter in enumerate(parameters):
+        fig.add_trace(go.Histogram(x=cancelled_bookings[parameter], name='Cancelled', opacity=0.65),
+                      row=i // 4 + 1, col=i % 4 + 1)
+        fig.add_trace(go.Histogram(x=uncancelled_bookings[parameter], name='Uncancelled', opacity=0.65),
+                      row=i // 4 + 1, col=i % 4 + 1)
+
+    # Update layout
+    fig.update_layout(barmode='overlay', title='Distribution of Parameters for Cancelled and Uncancelled Bookings',
+                      showlegend=False)
+
+    # Update subplot titles
+    titles = ['Distribution of Number of Nights', 'Distribution of Days Before Check-in',
+              'Distribution of Hotel Star Rating',
+              'Distribution of Number of Adults', 'Distribution of Number of Children',
+              'Distribution of Number of Rooms',
+              'Distribution of Original Selling Amount', 'Distribution of First Booking']
+
+    fig.update_layout(barmode='overlay', title='Distribution of Parameters for Cancelled and Uncancelled Bookings',
+                      showlegend=False)
+
+    # Add axis titles
+    titles = ['Number of Nights', 'Days Before Check-in', 'Hotel Star Rating', 'Number of Adults',
+              'Number of Children', 'Number of Rooms', 'Original Selling Amount', 'First Booking']
+
+    for i, title in enumerate(titles):
+        fig.update_xaxes(title_text=title, row=i // 4 + 1, col=i % 4 + 1)
+
+    # Show the plot
+    fig.show()
 
 
 if __name__ == '__main__':
@@ -143,7 +197,7 @@ if __name__ == '__main__':
     # Convert date columns to datetime objects
     X['checkin_date'] = pd.to_datetime(X['checkin_date'], format='%d/%m/%Y %H:%M')
     X = preprocess_train(X)
-
+    make_distribution_graphs(X)
     count = X['is_cancelled'].value_counts()
     labels = count.index.tolist()
     values = count.values.tolist()
