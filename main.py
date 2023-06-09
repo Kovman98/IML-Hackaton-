@@ -10,7 +10,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import accuracy_score,f1_score
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import Lasso
-from sklearn.linear_model import LogisticRegression
+# from sklearn.linear_model import LogisticRegression
 from scipy.special import expit
 from sklearn.ensemble import RandomForestRegressor
 import task_1, task_2, agoda_preprocess

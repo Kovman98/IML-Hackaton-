@@ -13,7 +13,7 @@ import re
 
 class MeanValuesCalculator:
     def __init__(self, dataframe):
-        self.dataframe = dataframe
+        # self.dataframe = dataframe
         self.mean_values = self.calculate_mean_values()
 
     def calculate_mean_values(self):
