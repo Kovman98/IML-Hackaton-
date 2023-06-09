@@ -102,7 +102,7 @@ def preprocess_data(X: pd.DataFrame) -> pd.DataFrame:
                         X['cancel_for_free'].loc[i] = 1
 
     # dropping columns that not needed (created alternative columns for these ones)
-    X = X.drop(['checkin_date', 'checkout_date', 'cancellation_datetime', 'cancellation_policy_code', 'request_largebed',
+    X = X.drop(['checkin_date', 'checkout_date', 'cancellation_policy_code', 'request_largebed',
                 'request_twinbeds', 'request_airport', 'request_earlycheckin', 'request_nonesmoke',
                 'request_latecheckin', 'request_highfloor', 'booking_datetime'], axis=1)
 
@@ -110,11 +110,11 @@ def preprocess_data(X: pd.DataFrame) -> pd.DataFrame:
     X['is_first_booking'] = X['is_first_booking'].astype(bool).astype(int)
 
     # using get_dummies on values labels that their values has no numerical meaning
-    X = pd.get_dummies(X, prefix='accommadation_type_name_', columns=['accommadation_type_name'])
-    X = pd.get_dummies(X, prefix='charge_option_', columns=['charge_option'], dtype=int)
-    X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'])
+    # X = pd.get_dummies(X, prefix='accommadation_type_name_', columns=['accommadation_type_name'], dtype=int)
+    # X = pd.get_dummies(X, prefix='charge_option_', columns=['charge_option'], dtype=int)
+    # X = pd.get_dummies(X, prefix='original_payment_type_', columns=['original_payment_type'], dtype=int)
 
-    X = X.drop(['hotel_country_code', 'guest_nationality_country_name', 'hotel_city_code'], axis=1)
+    X = X.drop(['charge_option','original_payment_type','accommadation_type_name', 'hotel_country_code', 'guest_nationality_country_name', 'hotel_city_code'], axis=1)
 
     return X
 
@@ -145,7 +145,7 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     Design matrix and response vector (Temp)
     """
 
-    X = X.dropna().drop_duplicates()
+    X = X.drop_duplicates()
 
     X = X[X["number_of_nights"] > 0]
     X = X[X["days_before_checkin"] > -2]
@@ -157,6 +157,8 @@ def preprocess_train(X: pd.DataFrame) -> pd.DataFrame:
     X = X[X["original_selling_amount"] <= 5000]
     X = X[X['number_of_nights'].isin(range(10))]
     X = X[X['days_before_checkin'] <= 200]
+
+    X = X.drop(['cancellation_datetime'], axis=1)
     X.reset_index()
     return X
 
@@ -209,79 +211,3 @@ def make_distribution_graphs(df: pd.DataFrame) -> None:
 
     # Show the plot
     fig.show()
-
-
-if __name__ == '__main__':
-    np.random.seed(0)
-    # Question 1 - Load and preprocessing of city temperature dataset
-    X = pd.read_csv("dataset/agoda_cancellation_train.csv", parse_dates=['booking_datetime', 'checkout_date', 'cancellation_datetime'])
-    # date_columns = ['booking_datetime', 'checkin_date', 'checkout_date', 'cancellation_datetime']
-
-    # Convert date columns to datetime objects
-    X['checkin_date'] = pd.to_datetime(X['checkin_date'], format='%d/%m/%Y %H:%M')
-
-    ids = X['h_booking_id']
-    X = X.drop('h_booking_id', axis=1)
-
-    X['is_cancelled'] = X['cancellation_datetime'].fillna(0)
-    X['is_cancelled'].loc[X['is_cancelled'] != 0] = 1
-    X = preprocess_data(X)
-    X = preprocess_train(X)
-    # make_distribution_graphs(X)
-    count = X['is_cancelled'].value_counts()
-    labels = count.index.tolist()
-    values = count.values.tolist()
-    colors = ['#FF7F0E', '#1F77B4']  # Orange for Cancelled, Blue for not cancelled
-    fig = go.Figure(data=[go.Pie(labels=labels,values=values,showlegend=False)])
-    fig.update_traces(marker=dict(colors=colors))
-    fig.update_layout(title="Cancellation Pie Chart")
-    # fig.show()
-    X.reset_index()
-    y = X['is_cancelled'].astype(int)
-    X = X.drop('is_cancelled', axis=1)
-
-
-
-    # features = ["number_of_nights", "days_before_checkin", "hotel_star_rating", "no_of_adults","no_of_children",
-    # "no_of_extra_bed","no_of_room", "original_selling_amount", 'number_of_nights', 'days_before_checkin']
-    # features = ['did_request','is_first_booking', 'is_user_logged_in']
-    # for feature in features:
-    #     correlation = np.cov(X[feature], y)[0, 1] / (np.std(X[feature]) * np.std(y))
-    #     fig = px.scatter(x=X[feature], y=y, title=f'Correlation between {feature} values and is_cancelled (Correlation:'
-    #                                                   f' {correlation:.2f})',
-    #                          labels={'x': f"{feature}", 'y': 'Did Cancel'})
-    #     fig.show()
-
-    features = ["number_of_nights", "days_before_checkin", "hotel_star_rating", "no_of_adults",
-                "no_of_children", "no_of_extra_bed", "no_of_room", "original_selling_amount",
-                "cancel_for_free","did_request","is_first_booking","is_user_logged_in"]
-
-    correlations = []
-
-    for feature in features:
-        correlation = np.cov(X[feature], y)[0, 1] / (np.std(X[feature]) * np.std(y))
-        correlations.append(correlation)
-
-    # Find the index of the feature with the highest correlation
-    max_corr_index = np.argmax(np.abs(correlations))
-
-    # Create a color list for the bar plot
-    colors = ['#ffcccc'] * len(features)  # Default color for all features
-    colors[max_corr_index] = '#ff0000'  # Color for the feature with highest correlation
-
-    # Create the bar plot using Plotly
-    fig = go.Figure(data=go.Bar(x=features, y=correlations, marker=dict(color=colors)))
-
-    # Customize the layout of the plot
-    fig.update_layout(title='Correlations between Features and Target Variable',
-                      xaxis_title='Features',
-                      yaxis_title='Correlation',
-                      plot_bgcolor='rgba(0, 0, 0, 0)')  # Set plot background color to transparent
-
-    # Show the plot
-    fig.show()
-
-    # y = X['cancellation_datetime']
-    # y = y.fillna(0)
-    # y.loc[y != 0] = 1
-    #

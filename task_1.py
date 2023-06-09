@@ -14,10 +14,11 @@ def task_1(model, path: str, mean_values: pd.Series) -> None:
     df: pd.DataFrame = load_data(path)
 
     # preproccess the data
-    df = agoda_preprocess.unknown_data_preprocess(df)
+    df = agoda_preprocess.preprocess_data(df)
     df = agoda_preprocess.preprocess_test(df, mean_values)
-
+    ids = df['h_booking_id']
+    df = df.drop(['h_booking_id'], axis=1)
     predictions = model.predict(df)
 
-    output_df = pd.DataFrame({'id': df['h_booking_id'], 'cancellation': predictions})
+    output_df = pd.DataFrame({'id': ids, 'cancellation': predictions})
     output_df.to_csv("agoda_cancellation_prediction.csv", index=False)

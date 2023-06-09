@@ -210,11 +210,14 @@ if __name__ == '__main__':
 
         # preprocess all data and splitting into test and train sets:
         dataFrame = agoda_preprocess.preprocess_data(dataFrame)
+        dataFrame['is_cancelled'] = dataFrame['cancellation_datetime'].fillna(0)
+        dataFrame['is_cancelled'].loc[dataFrame['is_cancelled'] != 0] = 1
         train, test = split_train_test(dataFrame)
 
         clean_train = agoda_preprocess.preprocess_train(train)
         mean_features_values: agoda_preprocess.MeanValuesCalculator = agoda_preprocess.MeanValuesCalculator(train)
         clean_test = agoda_preprocess.preprocess_test(test, mean_features_values.mean_values)
+        clean_test = clean_test.drop(['cancellation_datetime'], axis=1)
 
         # splitting train and test sets into x and y
         train_y = clean_train["is_cancelled"].astype(int)
@@ -226,14 +229,47 @@ if __name__ == '__main__':
 
         # model selecting part:
         # model_selection(train_x, train_y, test_x, test_y)
-        # clusterin(clean_train)
 
         # task 1:
         best_model = XGBClassifier(n_estimators=100, max_depth=2, learning_rate=0.1).fit(train_x, train_y)
-        task_1.task_1(best_model, path1, mean_features_values.mean_values)
+        # task_1.task_1(best_model, path1, mean_features_values.mean_values)
 
         # question 2:
+        train_x = train_x.drop('original_selling_amount', axis=1)
+        best_model = XGBClassifier(n_estimators=100, max_depth=2, learning_rate=0.1).fit(train_x, train_y)
+
         task_2.task_2(best_model, path2, mean_features_values, clean_train, clean_test)
 
+        #question 3:
 
+        features = ["number_of_nights", "days_before_checkin", "hotel_star_rating", "no_of_adults",
+                    "no_of_children", "no_of_extra_bed", "no_of_room", "original_selling_amount",
+                    "cancel_for_free", "did_request", "is_first_booking", "is_user_logged_in"]
 
+        correlations = []
+
+        for feature in features:
+            correlation = np.cov(train_x[feature], train_y)[0, 1] / (np.std(train_x[feature]) * np.std(train_y))
+            correlations.append(correlation)
+
+        # Find the index of the feature with the highest correlation
+        max_corr_index = np.argmax(np.abs(correlations))
+
+        # # Create a color list for the bar plot
+        colors = ['#ffcccc'] * len(features)  # Default color for all features
+        colors[max_corr_index] = '#ff0000'  # Color for the feature with highest correlation
+
+        # # Create the bar plot using Plotly
+        fig = go.Figure(data=go.Bar(x=features, y=correlations, marker=dict(color=colors)))
+
+        # # Customize the layout of the plot
+        fig.update_layout(title='Correlations between Features and Target Variable',
+                          xaxis_title='Features',
+                          yaxis_title='Correlation',
+                          plot_bgcolor='rgba(0, 0, 0, 0)')  # Set plot background color to transparent
+
+        # Show the plot
+        fig.show()
+
+        #question 4:
+        clusterin(clean_train)

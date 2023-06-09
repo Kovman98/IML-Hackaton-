@@ -8,9 +8,9 @@ from sklearn.linear_model import Lasso
 
 
 def load_data(path: str) -> pd.DataFrame:
-    df: pd.DataFrame = pd.read_csv(path, parse_dates=['booking_datetime', 'checkout_date'], dayfirst=True)
+    df: pd.DataFrame = pd.read_csv(path, parse_dates=['booking_datetime', 'checkout_date','checkin_date'], dayfirst=True)
     df = df.sample(frac=1).reset_index(drop=True)
-    df['checkin_date'] = pd.to_datetime(df['checkin_date'], format='%d/%m/%Y %H:%M')
+    # df['checkin_date'] = pd.to_datetime(df['checkin_date'], format='%d/%m/%Y %H:%M')
 
     return df
 
@@ -71,23 +71,24 @@ def task_2(best_model, path: str, mValues: pd.Series, clean_train: pd.DataFrame,
     dataFrame: pd.DataFrame = load_data(path)
 
     # preproccess the data
-    dataFrame = agoda_preprocess.unknown_data_preprocess(dataFrame)
+    dataFrame = agoda_preprocess.preprocess_data(dataFrame)
     dataFrame = agoda_preprocess.preprocess_test(dataFrame, mValues)
-
-    predictions = best_model.predict(dataFrame)
+    ids = dataFrame['h_booking_id']
+    dataFrame = dataFrame.drop(['h_booking_id'], axis=1)
+    predictions = best_model.predict(dataFrame).astype(int)
 
     # Filter the predictions to get the IDs with non-zero values
-    non_zero_ids = predictions[predictions != 0].index
+    non_zero_ids = np.where(predictions == 1)[0]
 
     # Make predictions using the best_linear_model for the non-zero IDs
     predicted_values = best_linear_model.predict(dataFrame.loc[non_zero_ids])
 
     # Create a DataFrame with the non-zero IDs and the predicted values
-    output_df = pd.DataFrame({'id': dataFrame.loc[non_zero_ids]['h_booking_id'], 'prediction': predicted_values})
+    output_df = pd.DataFrame({'id': ids.loc[non_zero_ids], 'prediction': predicted_values})
 
-    # Assign -1 as the prediction for the IDs with prediction value of 0
-    output_df.append(pd.DataFrame({'id': dataFrame.loc[predictions == 0]['h_booking_id'], 'prediction': -1}))
+    # Set predictions equal to -1 for IDs with prediction value of 0
+    output_df = pd.concat([output_df, pd.DataFrame({'id': ids.loc[predictions == 0], 'prediction': -1})],
+                          ignore_index=True)
 
     # Save the DataFrame to a CSV file
-    output_df = pd.DataFrame({'id': dataFrame['h_booking_id'], 'cancellation': predictions})
     output_df.to_csv('agoda_cost_of_cancellation.csv', index=False)
